@@ -1,30 +1,37 @@
 ## Do species interactions modify trait predictions?
 
 ## Kaitlin Kimmel
-## June 11, 2018
+## November 28,2018
+
+## Goal: To determine how much species interactions and environmental conditions impact
+# trait predictions. 
+
 
 #libraries
+
 library(plyr)
 library(dplyr)
 library(tidyr)
 library(nlme)
 library(purrr)
-library(ggplot2)
 library(reshape)
+library(here)
 
 # Data 
-TisN <- read.csv("~/Documents/Research/Interspecific_Interactions/data/PercN.csv", na.strings=c("","NA"))
+TisN <- read.csv(here("data", "PercN.csv"), na.strings=c("","NA"))
 names(TisN) <- c("Year", "Date", "Plot", "Ring", "CO2Trt", "NTrt", "SR", "FGR",
                  "Exp", "monospecies", "monoFunGroup", "WaterTrt", "TempTrt", "Comments",
                  "Carbon", "Nitrogen", "CNRatio")
-Biomass <- read.delim("~/Documents/Research/Interspecific_Interactions/data/Biomass_BioCON.txt",na.strings=c("","NA"))
+Biomass <- read.delim(here("data","Biomass_BioCON.txt"),na.strings=c("","NA"))
 names(Biomass) <- c("Sample", "Date", "Plot", "Ring", "CO2Trt", "NTrt", "SR", "FGR",
                  "Exp", "monospecies", "monoFunGroup", "WaterTrt", "TempTrt", "Species", "Biomass")
-
-PercCover<- read.delim("~/Documents/Research/Interspecific_Interactions/data/PercCover_BioCON.txt", na.strings=c("NA",""))
+PercCover<- read.delim(here("data","PercCover_BioCON.txt"), na.strings=c("NA",""))
 names(PercCover) <- c("Sample", "Season", "Year", "Plot", "Ring", "CO2Trt", "NTrt", "SR", "FGR",
                     "Exp", "monospecies", "monoFunGroup", "WaterTrt", "TempTrt", "Species", "PercCov")
-CDRSPDat <- read.csv("~/Documents/Research/Interspecific_Interactions/data/CDRSPDat.csv", na.strings=c("NA",""))
+CDRSPDat <- read.csv(here::here("data","CDRSPDat.csv"), na.strings=c("NA",""))
+
+
+## Data cleaning - Species names ##
 # Need to change species names to Genus species that are in GenusSpecies format
 TisN$monospecies<- gsub(pattern = "AchilleaMillefolium", replacement = "Achillea millefolium", TisN$monospecies)
 TisN$monospecies<- gsub(pattern = "BoutelouaGracilis", replacement = "Bouteloua gracilis", TisN$monospecies)
@@ -42,36 +49,22 @@ TisN$monospecies<- gsub(pattern = "LupinusPerennis", replacement = "Lupinus pere
 TisN$monospecies<- gsub(pattern = "AndropogonGerardi", replacement = "Andropogon gerardi", TisN$monospecies)
 TisN$monospecies<- gsub(pattern = "SorghastrumNutans", replacement = "Sorghastrum nutans", TisN$monospecies)
 
-
-TisN <- TisN[-which(is.na(TisN$Nitrogen)),]
-TisN <- subset(TisN, Comments == "Total Above")
-TisN$ExpYear <- TisN$Year-1997
-TisN$l.year <- log(TisN$ExpYear)
+## Data cleaning - getting columns and rows correct ##
+TisN <- TisN[-which(is.na(TisN$Nitrogen)),] # get rid of rows without tissue N values
+TisN <- subset(TisN, Comments == "Total Above") # Aboveground tissue N only
+TisN$ExpYear <- TisN$Year-1997 #Create experiment year column
+TisN$l.year <- log(TisN$ExpYear) #Log year column
+TisN$YearSq <- TisN$ExpYear^2 # Year squared column
 
 # Get rid of drought plots
 TisN <- TisN[-which(TisN$WaterTrt == 'H2Oneg'),]
 # Get rid of warmed plots
 TisN <- TisN[-which(TisN$TempTrt == 'HTelv'),]
 
+# save cleaned dataset
+write.csv(TisN, here("data", "TisN_clean.csv"))
 
-ggplot(data = TisN, aes(x = ExpYear, y = Nitrogen)) +
-  geom_point(aes(color= as.factor(SR)))+
-  geom_smooth(method = lm, aes(color = as.factor(SR)))+
-  facet_grid(CO2Trt~NTrt)+
-  ylab("Nitrogen")+
-  theme_linedraw()
 
-ggplot(data = TisN, aes(x = ExpYear, y = Nitrogen)) +
-  geom_smooth(method = lm, aes(color = as.factor(FGR)))+
-  facet_grid(CO2Trt~NTrt)+
-  ylab("Nitrogen")+
-  theme_linedraw()
-
-ggplot(data = TisN, aes(x = ExpYear, y = Nitrogen)) +
-  geom_smooth(method = lm, aes(color = as.factor(FGR), linetype = as.factor(SR)))+
-  facet_grid(CO2Trt~NTrt)+
-  ylab("Nitrogen")+
-  theme_linedraw()
 
 ## How does tissue N depend on time, treatment, and species richness? ##
 mod <- lme(Nitrogen ~ CO2Trt*NTrt*SR*ExpYear, random = ~1|Ring/Plot, 
@@ -88,7 +81,6 @@ mod3 <- lme(Nitrogen ~ CO2Trt + NTrt + SR + ExpYear+ CO2Trt:NTrt + CO2Trt:SR + C
               NTrt:SR + NTrt:ExpYear + SR:ExpYear + CO2Trt:NTrt:SR + CO2Trt:NTrt:ExpYear +
               CO2Trt:SR:ExpYear + NTrt:SR:ExpYear, random = ~1|Ring/Plot, 
               correlation = corCAR1(form = ~ 1 | Ring/Plot), data = TisN, method = "ML")
-
 
 mod4 <- lme(Nitrogen ~ CO2Trt + NTrt + SR + l.year + CO2Trt:NTrt + CO2Trt:SR + CO2Trt:l.year +
               NTrt:SR + NTrt:l.year + SR:l.year + CO2Trt:NTrt:SR + CO2Trt:NTrt:l.year +
@@ -107,7 +99,6 @@ mod6 <- lme(Nitrogen ~ CO2Trt + NTrt + SR + l.year+ CO2Trt:NTrt + CO2Trt:SR + CO
 mod7 <- lme(Nitrogen ~ CO2Trt + NTrt + SR + poly(ExpYear,2)+ CO2Trt:NTrt + CO2Trt:SR + CO2Trt:poly(ExpYear,2) +
               NTrt:SR + NTrt:poly(ExpYear,2) + SR:poly(ExpYear,2), random = ~1|Ring/Plot, 
               correlation = corCAR1(form = ~ 1 | Ring/Plot), data = TisN, method = "ML")
-TisN$YearSq <- TisN$ExpYear^2
 mod8 <- lme(Nitrogen ~ CO2Trt + NTrt + SR + ExpYear + YearSq + CO2Trt:NTrt + 
               CO2Trt:SR + CO2Trt:YearSq + CO2Trt:ExpYear + NTrt:SR + 
               NTrt:YearSq + NTrt:ExpYear + SR:YearSq + SR:ExpYear, random = ~1|Ring/Plot, 
@@ -116,7 +107,7 @@ mod8 <- lme(Nitrogen ~ CO2Trt + NTrt + SR + ExpYear + YearSq + CO2Trt:NTrt +
 anova(mod5, mod6, mod7, mod8) # polynomial fit the best, but would conclude mostly the same with any model
 summary(mod7) 
 summary(mod5) # Significant negative year:sr interaction, positive CO2:Year interaction
-# Significant negative effect of Year, poistive effect of N addition
+# Significant negative effect of Year and species richness, poistive effect of N addition
 
 
 # Getting average trait values based on monocultures# 
@@ -135,6 +126,11 @@ ggplot(data = MonoSp, aes(x = monospecies, y = Nitrogen)) +
   theme_linedraw() + 
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ## DOES VAR CHANGE WITH MEAN? 
+
+# Need to look at monoculture values in order to predict the community weighted mean
+# of polyculture. But there are many ways we can group them based on environment & year.
+
+# First we will look at the average values over each treatment and year
 # Grouped by species, year, and treatment
 MonoSpMeans_ty <- aggregate(MonoSp$Nitrogen, list(ExpYear = MonoSp$ExpYear, NTrt = MonoSp$NTrt, CO2Trt = MonoSp$CO2Trt, 
                                      sp = MonoSp$monospecies), mean, na.action = na.omit)
@@ -145,7 +141,8 @@ ggplot(data = MonoSpMeans_ty, aes(x = ExpYear, y = x)) +
   ylab("Nitrogen")+
   theme_linedraw()
 
-# Monoculture means for each year
+# Next we will only consider ambient plots - but still look at those changing through time
+# Monoculture ambient means for each year
 MonoSpMeans_amby <- MonoSpMeans_ty[which(MonoSpMeans_ty$NTrt == "Namb" & MonoSpMeans_ty$CO2Trt == "Camb"),]
 
 ggplot(data = MonoSpMeans_amby, aes(x = ExpYear, y = x)) +
@@ -153,6 +150,20 @@ ggplot(data = MonoSpMeans_amby, aes(x = ExpYear, y = x)) +
   ylab("Nitrogen")+
   theme_linedraw()
 
+# Now we will just consider ambient plots in the first year
+#Ambient year 1 means
+MonoSpMeans_amb1 <- MonoSpMeans_ty[which(MonoSpMeans_ty$NTrt == 'Namb' & 
+                                           MonoSpMeans_ty$CO2Trt == 'Camb' &
+                                           MonoSpMeans_ty$ExpYear == 1),]
+asc <- MonoSpMeans_amb1[order(MonoSpMeans_amb1$x),]
+asc$sp <- factor(asc$sp, levels = asc$sp[order(asc$x)])
+ggplot(data = asc, aes(x = sp, y = x)) +
+  geom_point()+
+  ylab("Nitrogen")+
+  theme_linedraw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+# Now we can get an average for each treatment, but compiled over all years.9
 # Grouped by species & treatment, regardless of year
 MonoSpMeans_t <- aggregate(MonoSp$Nitrogen, list(NTrt = MonoSp$NTrt, CO2Trt = MonoSp$CO2Trt, 
                                                  sp = MonoSp$monospecies), mean, na.action = na.omit)
@@ -187,6 +198,7 @@ ggplot(data = asc, aes(x = sp, y = x)) +
   ylab("Nitrogen")+
   theme_linedraw() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
 
 
 
