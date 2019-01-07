@@ -16,6 +16,7 @@ library(nlme)
 library(purrr)
 library(reshape)
 library(here)
+library(ggplot2)
 
 # Data 
 TisN <- read.csv(here("data", "PercN.csv"), na.strings=c("","NA"))
