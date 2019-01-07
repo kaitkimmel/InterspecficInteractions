@@ -35,6 +35,7 @@
 ###########################################################################
 # load libraries
 library(here)
+library(tidyr)
 ###########################################################################
 # load data
 
@@ -44,13 +45,7 @@ TisN <- read.csv(here("data", "TisN_clean.csv"),row.names = 1)
 names(TisN) <- c("Year", "Date", "Plot", "Ring", "CO2Trt", "NTrt", "SR", "FGR",
                  "Exp", "monospecies", "monoFunGroup", "WaterTrt", "TempTrt", "Comments",
                  "Carbon", "Nitrogen", "CNRatio")
-Biomass <- read.delim(here("data","Biomass_BioCON.txt"),na.strings=c("","NA"))
-names(Biomass) <- c("Sample", "Date", "Plot", "Ring", "CO2Trt", "NTrt", "SR", "FGR",
-                    "Exp", "monospecies", "monoFunGroup", "WaterTrt", "TempTrt", "Species", "Biomass")
-PercCover<- read.delim(here("data","PercCover_BioCON.txt"), na.strings=c("NA",""))
-names(PercCover) <- c("Sample", "Season", "Year", "Plot", "Ring", "CO2Trt", "NTrt", "SR", "FGR",
-                      "Exp", "monospecies", "monoFunGroup", "WaterTrt", "TempTrt", "Species", "PercCov")
-CDRSPDat <- read.csv(here::here("data","CDRSPDat.csv"), na.strings=c("NA",""))
+ExpDes <- read.csv(here("data", "BioCONExpDes.csv"))
 
 
 ##########################################################################
@@ -59,5 +54,11 @@ CDRSPDat <- read.csv(here::here("data","CDRSPDat.csv"), na.strings=c("NA",""))
 # of the species in the plot, and the measured tissue N
 ########################################################################
 
-# Subset TisN for last year of experiment, plot, ring, SR, FR, %N, CO2, & N treatments
-SIMod.df <- TisN[TisN$ExpYear == max(TisN$ExpYear), c(3:8,16)]
+# Subset TisN for last year of experiment, plot, ring, SR, %N, CO2, & N treatments
+SIMod.df <- TisN[TisN$ExpYear == max(TisN$ExpYear), c(3:7,16)]
+SIMod.df <- merge(SIMod.df, ExpDes, by = c("Plot", "Ring"))
+# Check the SR column = number of planted species
+which(SIMod.df$SR != rowSums(SIMod.df[,c(7:22)])) # Equals 0 - all good!
+SIMod.df[c(7:22)] <- SIMod.df[c(7:22)]/SIMod.df$SR
+# Need to put Tissue N as last column
+SIMod.df <- SIMod.df[,c(1:5,7:22,6)]

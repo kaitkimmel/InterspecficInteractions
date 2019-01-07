@@ -59,7 +59,9 @@ TisN$YearSq <- TisN$ExpYear^2 # Year squared column
 
 # Get rid of drought plots
 TisN <- TisN[-which(TisN$WaterTrt == 'H2Oneg'),]
-# Get rid of warmed plots
+# Get rid of warmed plots; some years Ht v HT
+TisN$TempTrt <- gsub(pattern = "Htelv", replacement = "HTelv", TisN$TempTrt)
+TisN$TempTrt <- gsub(pattern = "Htamb", replacement = "HTamb", TisN$TempTrt)
 TisN <- TisN[-which(TisN$TempTrt == 'HTelv'),]
 
 # save cleaned dataset
