@@ -20,14 +20,14 @@ library(ggplot2)
 
 # Data 
 TisN <- read.csv(here("data", "PercN.csv"), na.strings=c("","NA"))
-names(TisN) <- c("Year", "Date", "Plot", "Ring", "CO2Trt", "NTrt", "SR", "FGR",
+names(TisN) <- c("Year", "Date", "Plot", "Ring", "CO2", "N", "SR", "FGR",
                  "Exp", "monospecies", "monoFunGroup", "WaterTrt", "TempTrt", "Comments",
                  "Carbon", "Nitrogen", "CNRatio")
 Biomass <- read.delim(here("data","Biomass_BioCON.txt"),na.strings=c("","NA"))
-names(Biomass) <- c("Sample", "Date", "Plot", "Ring", "CO2Trt", "NTrt", "SR", "FGR",
+names(Biomass) <- c("Sample", "Date", "Plot", "Ring", "CO2", "N", "SR", "FGR",
                  "Exp", "monospecies", "monoFunGroup", "WaterTrt", "TempTrt", "Species", "Biomass")
 PercCover<- read.delim(here("data","PercCover_BioCON.txt"), na.strings=c("NA",""))
-names(PercCover) <- c("Sample", "Season", "Year", "Plot", "Ring", "CO2Trt", "NTrt", "SR", "FGR",
+names(PercCover) <- c("Sample", "Season", "Year", "Plot", "Ring", "CO2", "N", "SR", "FGR",
                     "Exp", "monospecies", "monoFunGroup", "WaterTrt", "TempTrt", "Species", "PercCov")
 CDRSPDat <- read.csv(here::here("data","CDRSPDat.csv"), na.strings=c("NA",""))
 
@@ -70,41 +70,41 @@ write.csv(TisN, here("data", "TisN_clean.csv"))
 
 
 ## How does tissue N depend on time, treatment, and species richness? ##
-mod <- lme(Nitrogen ~ CO2Trt*NTrt*SR*ExpYear, random = ~1|Ring/Plot, 
+mod <- lme(Nitrogen ~ CO2*N*SR*ExpYear, random = ~1|Ring/Plot, 
            correlation = corCAR1(form = ~ 1 | Ring/Plot), data = TisN,  method = "ML")
 
-mod1 <- lme(Nitrogen ~ CO2Trt*NTrt*SR*ExpYear, random = ~1|Ring/Plot, 
+mod1 <- lme(Nitrogen ~ CO2*N*SR*ExpYear, random = ~1|Ring/Plot, 
            correlation = corCompSymm(form = ~ 1 | Ring/Plot), data = TisN,  method = "ML")
 
-mod2 <- lme(Nitrogen ~ CO2Trt*NTrt*SR*ExpYear, random = ~1|Ring/Plot,data = TisN,  method = "ML")
+mod2 <- lme(Nitrogen ~ CO2*N*SR*ExpYear, random = ~1|Ring/Plot,data = TisN,  method = "ML")
 
 anova(mod, mod1, mod2)
 
-mod3 <- lme(Nitrogen ~ CO2Trt + NTrt + SR + ExpYear+ CO2Trt:NTrt + CO2Trt:SR + CO2Trt:ExpYear +
-              NTrt:SR + NTrt:ExpYear + SR:ExpYear + CO2Trt:NTrt:SR + CO2Trt:NTrt:ExpYear +
-              CO2Trt:SR:ExpYear + NTrt:SR:ExpYear, random = ~1|Ring/Plot, 
+mod3 <- lme(Nitrogen ~ CO2 + N + SR + ExpYear+ CO2:N + CO2:SR + CO2:ExpYear +
+              N:SR + N:ExpYear + SR:ExpYear + CO2:N:SR + CO2:N:ExpYear +
+              CO2:SR:ExpYear + N:SR:ExpYear, random = ~1|Ring/Plot, 
               correlation = corCAR1(form = ~ 1 | Ring/Plot), data = TisN, method = "ML")
 
-mod4 <- lme(Nitrogen ~ CO2Trt + NTrt + SR + l.year + CO2Trt:NTrt + CO2Trt:SR + CO2Trt:l.year +
-              NTrt:SR + NTrt:l.year + SR:l.year + CO2Trt:NTrt:SR + CO2Trt:NTrt:l.year +
-              CO2Trt:SR:l.year + NTrt:SR:l.year, random = ~1|Ring/Plot, 
+mod4 <- lme(Nitrogen ~ CO2 + N + SR + l.year + CO2:N + CO2:SR + CO2:l.year +
+              N:SR + N:l.year + SR:l.year + CO2:N:SR + CO2:N:l.year +
+              CO2:SR:l.year + N:SR:l.year, random = ~1|Ring/Plot, 
               correlation = corCAR1(form = ~ 1 | Ring/Plot), data = TisN, method = "ML")
 anova(mod3, mod4)
 
-mod5 <- lme(Nitrogen ~ CO2Trt + NTrt + SR + ExpYear+ CO2Trt:NTrt + CO2Trt:SR + CO2Trt:ExpYear +
-              NTrt:SR + NTrt:ExpYear + SR:ExpYear, random = ~1|Ring/Plot, 
+mod5 <- lme(Nitrogen ~ CO2 + N + SR + ExpYear+ CO2:N + CO2:SR + CO2:ExpYear +
+              N:SR + N:ExpYear + SR:ExpYear, random = ~1|Ring/Plot, 
               correlation = corCAR1(form = ~ 1 | Ring/Plot), data = TisN, method = "ML")
 
-mod6 <- lme(Nitrogen ~ CO2Trt + NTrt + SR + l.year+ CO2Trt:NTrt + CO2Trt:SR + CO2Trt:l.year +
-              NTrt:SR + NTrt:l.year + SR:l.year, random = ~1|Ring/Plot, 
+mod6 <- lme(Nitrogen ~ CO2 + N + SR + l.year+ CO2:N + CO2:SR + CO2:l.year +
+              N:SR + N:l.year + SR:l.year, random = ~1|Ring/Plot, 
               correlation = corCAR1(form = ~ 1 | Ring/Plot), data = TisN, method = "ML")
 
-mod7 <- lme(Nitrogen ~ CO2Trt + NTrt + SR + poly(ExpYear,2)+ CO2Trt:NTrt + CO2Trt:SR + CO2Trt:poly(ExpYear,2) +
-              NTrt:SR + NTrt:poly(ExpYear,2) + SR:poly(ExpYear,2), random = ~1|Ring/Plot, 
+mod7 <- lme(Nitrogen ~ CO2 + N + SR + poly(ExpYear,2)+ CO2:N + CO2:SR + CO2:poly(ExpYear,2) +
+              N:SR + N:poly(ExpYear,2) + SR:poly(ExpYear,2), random = ~1|Ring/Plot, 
               correlation = corCAR1(form = ~ 1 | Ring/Plot), data = TisN, method = "ML")
-mod8 <- lme(Nitrogen ~ CO2Trt + NTrt + SR + ExpYear + YearSq + CO2Trt:NTrt + 
-              CO2Trt:SR + CO2Trt:YearSq + CO2Trt:ExpYear + NTrt:SR + 
-              NTrt:YearSq + NTrt:ExpYear + SR:YearSq + SR:ExpYear, random = ~1|Ring/Plot, 
+mod8 <- lme(Nitrogen ~ CO2 + N + SR + ExpYear + YearSq + CO2:N + 
+              CO2:SR + CO2:YearSq + CO2:ExpYear + N:SR + 
+              N:YearSq + N:ExpYear + SR:YearSq + SR:ExpYear, random = ~1|Ring/Plot, 
             correlation = corCAR1(form = ~ 1 | Ring/Plot), data = TisN, method = "ML")
 
 anova(mod5, mod6, mod7, mod8) # polynomial fit the best, but would conclude mostly the same with any model
@@ -119,12 +119,12 @@ MonoSp <- TisN[-which(is.na(TisN$monospecies)),]
 
 ggplot(data = MonoSp, aes(x = ExpYear, y = Nitrogen)) +
   geom_line(aes(color = monospecies)) + 
-  facet_grid(CO2Trt~NTrt)+
+  facet_grid(CO2~N)+
   ylab("Nitrogen")+
   theme_linedraw()
 
 ggplot(data = MonoSp, aes(x = monospecies, y = Nitrogen)) +
-  geom_boxplot(aes(color = CO2Trt:NTrt)) + 
+  geom_boxplot(aes(color = CO2:N)) + 
   ylab("Nitrogen") +
   theme_linedraw() + 
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
@@ -135,18 +135,18 @@ ggplot(data = MonoSp, aes(x = monospecies, y = Nitrogen)) +
 
 # First we will look at the average values over each treatment and year
 # Grouped by species, year, and treatment
-MonoSpMeans_ty <- aggregate(MonoSp$Nitrogen, list(ExpYear = MonoSp$ExpYear, NTrt = MonoSp$NTrt, CO2Trt = MonoSp$CO2Trt, 
+MonoSpMeans_ty <- aggregate(MonoSp$Nitrogen, list(ExpYear = MonoSp$ExpYear, N = MonoSp$N, CO2 = MonoSp$CO2, 
                                      sp = MonoSp$monospecies), mean, na.action = na.omit)
 
 ggplot(data = MonoSpMeans_ty, aes(x = ExpYear, y = x)) +
   geom_line(aes(color = sp))+
-  facet_grid(NTrt~CO2Trt)+
+  facet_grid(N~CO2)+
   ylab("Nitrogen")+
   theme_linedraw()
 
 # Next we will only consider ambient plots - but still look at those changing through time
 # Monoculture ambient means for each year
-MonoSpMeans_amby <- MonoSpMeans_ty[which(MonoSpMeans_ty$NTrt == "Namb" & MonoSpMeans_ty$CO2Trt == "Camb"),]
+MonoSpMeans_amby <- MonoSpMeans_ty[which(MonoSpMeans_ty$N == "Namb" & MonoSpMeans_ty$CO2 == "Camb"),]
 
 ggplot(data = MonoSpMeans_amby, aes(x = ExpYear, y = x)) +
   geom_line(aes(color = sp))+
@@ -155,8 +155,8 @@ ggplot(data = MonoSpMeans_amby, aes(x = ExpYear, y = x)) +
 
 # Now we will just consider ambient plots in the first year
 #Ambient year 1 means
-MonoSpMeans_amb1 <- MonoSpMeans_ty[which(MonoSpMeans_ty$NTrt == 'Namb' & 
-                                           MonoSpMeans_ty$CO2Trt == 'Camb' &
+MonoSpMeans_amb1 <- MonoSpMeans_ty[which(MonoSpMeans_ty$N == 'Namb' & 
+                                           MonoSpMeans_ty$CO2 == 'Camb' &
                                            MonoSpMeans_ty$ExpYear == 1),]
 asc <- MonoSpMeans_amb1[order(MonoSpMeans_amb1$x),]
 asc$sp <- factor(asc$sp, levels = asc$sp[order(asc$x)])
@@ -168,11 +168,11 @@ ggplot(data = asc, aes(x = sp, y = x)) +
 
 # Now we can get an average for each treatment, but compiled over all years.9
 # Grouped by species & treatment, regardless of year
-MonoSpMeans_t <- aggregate(MonoSp$Nitrogen, list(NTrt = MonoSp$NTrt, CO2Trt = MonoSp$CO2Trt, 
+MonoSpMeans_t <- aggregate(MonoSp$Nitrogen, list(N = MonoSp$N, CO2 = MonoSp$CO2, 
                                                  sp = MonoSp$monospecies), mean, na.action = na.omit)
 
 # Averages for ambient plots only
-MonoSpMeans_amb <- MonoSpMeans_t[which(MonoSpMeans_t$NTrt == 'Namb' & MonoSpMeans_t$CO2Trt == 'Camb'),]
+MonoSpMeans_amb <- MonoSpMeans_t[which(MonoSpMeans_t$N == 'Namb' & MonoSpMeans_t$CO2 == 'Camb'),]
 
 asc <- MonoSpMeans_amb[order(MonoSpMeans_amb$x),]
 asc$sp <- factor(asc$sp, levels = asc$sp[order(asc$x)])
@@ -228,7 +228,7 @@ ab.mat$Species<- gsub(pattern = "Anemone cylindrica ", replacement = "Anemone cy
 ab.mat$Species<- gsub(pattern = "bromus inermis", replacement = "Bromus inermis", ab.mat$Species)
 
 # Change "Cenriched " to "Cenrich"
-ab.mat$CO2Trt<- gsub(pattern = "Cenriched ", replacement = "Cenrich", ab.mat$CO2Trt)
+ab.mat$CO2<- gsub(pattern = "Cenriched ", replacement = "Cenrich", ab.mat$CO2)
 # Get rid of drought plots
 ab.mat <- ab.mat[-which(ab.mat$WaterTrt == 'H2Oneg'),]
 # Get rid of warmed plots
@@ -279,7 +279,7 @@ ab.mat.wide <- spread(data = ab.mat.sub, key = Species, fill = 0, value = propbi
 ab.mat <- join(ab.mat, CDRSPDat[,c(1:2)])
 ab.mat[is.na(ab.mat$FunctionalGroup),]$FunctionalGroup <- "F"
 FG.mat <- aggregate(ab.mat$propbio, by=list(Plot = ab.mat$Plot, Ring = ab.mat$Ring, 
-                                            CO2Trt = ab.mat$CO2Trt, NTrt =ab.mat$NTrt, 
+                                            CO2 = ab.mat$CO2, N =ab.mat$N, 
                                             SR = ab.mat$SR, FGR = ab.mat$FGR, ExpYear = ab.mat$ExpYear,
                                             FunGroup = ab.mat$FunctionalGroup),
                     FUN= sum)
@@ -311,30 +311,30 @@ colnames(amb.mat)[ncol(amb.mat)] <- "N_amb"
 # Make 4 matrices (one for each treatment)
 
 # Trait matrices
-amb.t <- MonoSpMeans_t[which(MonoSpMeans_t$NTrt == "Namb" & MonoSpMeans_t$CO2Trt == "Camb"),c(3,4)]
+amb.t <- MonoSpMeans_t[which(MonoSpMeans_t$N == "Namb" & MonoSpMeans_t$CO2 == "Camb"),c(3,4)]
 rownames(amb.t) <- amb.t[,1]
 amb.t[,1]<- NULL
-Nadd.t <- MonoSpMeans_t[which(MonoSpMeans_t$NTrt == "Nenrich" & MonoSpMeans_t$CO2Trt == "Camb"),c(3,4)]
+Nadd.t <- MonoSpMeans_t[which(MonoSpMeans_t$N == "Nenrich" & MonoSpMeans_t$CO2 == "Camb"),c(3,4)]
 rownames(Nadd.t) <- Nadd.t[,1]
 Nadd.t[,1]<- NULL
-Cadd.t <- MonoSpMeans_t[which(MonoSpMeans_t$NTrt == "Namb" & MonoSpMeans_t$CO2Trt == "Cenrich"),c(3,4)]
+Cadd.t <- MonoSpMeans_t[which(MonoSpMeans_t$N == "Namb" & MonoSpMeans_t$CO2 == "Cenrich"),c(3,4)]
 rownames(Cadd.t) <- Cadd.t[,1]
 Cadd.t[,1]<- NULL
-En.t <- MonoSpMeans_t[which(MonoSpMeans_t$NTrt == "Nenrich" & MonoSpMeans_t$CO2Trt == "Cenrich"),c(3,4)]
+En.t <- MonoSpMeans_t[which(MonoSpMeans_t$N == "Nenrich" & MonoSpMeans_t$CO2 == "Cenrich"),c(3,4)]
 rownames(En.t) <- En.t[,1]
 En.t[,1]<- NULL
 
 # environmental and abundance matrices
-amb.ab <- ab.mat.wide[which(ab.mat.wide$NTrt == "Namb" & ab.mat.wide$CO2Trt == "Camb"),]
+amb.ab <- ab.mat.wide[which(ab.mat.wide$N == "Namb" & ab.mat.wide$CO2 == "Camb"),]
 env.amb <- amb.ab[,c(1:7)]
 amb.ab <- amb.ab[,-c(1:7)]
-Nadd.ab <- ab.mat.wide[which(ab.mat.wide$NTrt == "Nenrich" & ab.mat.wide$CO2Trt == "Camb"),]
+Nadd.ab <- ab.mat.wide[which(ab.mat.wide$N == "Nenrich" & ab.mat.wide$CO2 == "Camb"),]
 env.Nadd <- Nadd.ab[,c(1:7)]
 Nadd.ab <- Nadd.ab[,-c(1:7)]
-Cadd.ab <- ab.mat.wide[which(ab.mat.wide$NTrt == "Namb" & ab.mat.wide$CO2Trt == "Cenrich"),]
+Cadd.ab <- ab.mat.wide[which(ab.mat.wide$N == "Namb" & ab.mat.wide$CO2 == "Cenrich"),]
 env.Cadd <- Cadd.ab[,c(1:7)]
 Cadd.ab <- Cadd.ab[,-c(1:7)]
-En.ab <- ab.mat.wide[which(ab.mat.wide$NTrt == "Nenrich" & ab.mat.wide$CO2Trt == "Cenrich"),]
+En.ab <- ab.mat.wide[which(ab.mat.wide$N == "Nenrich" & ab.mat.wide$CO2 == "Cenrich"),]
 env.En <- En.ab[,c(1:7)]
 En.ab <- En.ab[,-c(1:7)]
 
@@ -407,8 +407,8 @@ colnames(ambyear.means)[8]<- "N_ambyear"
 
 # CWM using MonoSpMeans_ty
 
-ab.mat.wide$Treat <- paste(ab.mat.wide$NTrt, ab.mat.wide$CO2Trt, sep = "_")
-MonoSpMeans_ty$Treat <- paste(MonoSpMeans_ty$NTrt, MonoSpMeans_ty$CO2Trt, sep = "_")
+ab.mat.wide$Treat <- paste(ab.mat.wide$N, ab.mat.wide$CO2, sep = "_")
+MonoSpMeans_ty$Treat <- paste(MonoSpMeans_ty$N, MonoSpMeans_ty$CO2, sep = "_")
 years <- unique(MonoSpMeans_y$ExpYear)
 treatments <- unique(MonoSpMeans_ty$Treat)
 tr.mat <- data.frame()
@@ -450,7 +450,7 @@ ggplot(data = full.data[full.data$SR != 1,], aes(x = Nitrogen, y = N_amb)) +
   geom_point(aes(color = as.factor(SR)))+
   geom_smooth(method = "lm", aes(group=SR,linetype=factor(SR), color = factor(SR))) +
   geom_abline(slope = 1, intercept = 0) + 
-  facet_grid(CO2Trt~NTrt)+
+  facet_grid(CO2~N)+
   ylab("Predicted")+
   xlab("Actual") +
   theme_linedraw()
@@ -468,7 +468,7 @@ ggplot(data = full.data[full.data$SR != 1,], aes(x = Nitrogen, y = N_avg)) +
   geom_point(aes(color = as.factor(SR)))+
   geom_smooth(method = "lm", aes(group=SR,linetype=factor(SR), color = factor(SR))) +
   geom_abline(slope = 1, intercept = 0) + 
-  facet_grid(CO2Trt~NTrt)+
+  facet_grid(CO2~N)+
   ylab("Predicted")+
   xlab("Actual") +
   theme_linedraw()
@@ -477,7 +477,7 @@ ggplot(data = full.data, aes(x = Nitrogen, y = N_trt)) +
   geom_point(aes(color = as.factor(SR)))+
   geom_smooth(method = "lm", aes(group=SR, colour=factor(SR),linetype=factor(SR))) +
   geom_abline(slope = 1, intercept = 0) + 
-  facet_grid(CO2Trt~NTrt)+
+  facet_grid(CO2~N)+
   ylab("Predicted")+
   xlab("Actual") +
   theme_linedraw()
@@ -487,7 +487,7 @@ ggplot(data = full.data[full.data$SR != 1, ], aes(x = Nitrogen, y = N_trtyear)) 
   geom_point(aes(color = as.factor(SR)))+
   geom_smooth(method = "lm", aes(group=SR, colour=factor(SR),linetype=factor(SR))) +
   geom_abline(slope = 1, intercept = 0) + 
-  facet_grid(CO2Trt~NTrt)+
+  facet_grid(CO2~N)+
   ylab("Predicted")+
   xlab("Actual") +
   theme_linedraw()
@@ -496,13 +496,13 @@ ggplot(data = full.data, aes(x = Nitrogen, y = N_year)) +
   geom_point(aes(color = as.factor(SR)))+
   geom_smooth(method = "lm", aes(group=SR, colour=factor(SR),linetype=factor(SR))) +
   geom_abline(slope = 1, intercept = 0) + 
-  facet_grid(CO2Trt~NTrt)+
+  facet_grid(CO2~N)+
   ylab("Predicted")+
   xlab("Actual") +
   theme_linedraw()
 
 ggplot(data = full.data, aes(x = Nitrogen, y = N_ambyear)) +
-  geom_smooth(method = lm, aes(color = as.factor(CO2Trt:NTrt)))+
+  geom_smooth(method = lm, aes(color = as.factor(CO2:N)))+
   geom_abline(slope = 1, intercept = 0) + 
   facet_grid(.~ExpYear)+
   ylab("Predicted")+
@@ -510,8 +510,8 @@ ggplot(data = full.data, aes(x = Nitrogen, y = N_ambyear)) +
   theme_linedraw()
 
 ggplot(data = full.data, aes(x = Nitrogen, y = N_trt)) +
-  geom_point(aes(color = as.factor(CO2Trt:NTrt)))+
-  geom_smooth(method = lm, aes(color = as.factor(CO2Trt:NTrt)))+
+  geom_point(aes(color = as.factor(CO2:N)))+
+  geom_smooth(method = lm, aes(color = as.factor(CO2:N)))+
   geom_abline(slope = 1, intercept = 0) + 
   facet_grid(.~ExpYear)+
   ylab("Predicted")+
@@ -520,7 +520,7 @@ ggplot(data = full.data, aes(x = Nitrogen, y = N_trt)) +
 
 
 ggplot(data = full.data, aes(x = Nitrogen, y = N_year)) +
-  geom_point(aes(color = as.factor(CO2Trt:NTrt)))+
+  geom_point(aes(color = as.factor(CO2:N)))+
   geom_smooth(method = "lm", aes(group=SR, colour=factor(SR),linetype=factor(SR))) +
   geom_abline(slope = 1, intercept = 0) + 
   facet_grid(.~ExpYear)+
@@ -529,7 +529,7 @@ ggplot(data = full.data, aes(x = Nitrogen, y = N_year)) +
   theme_linedraw()
 
 ggplot(data = full.data, aes(x = Nitrogen, y = N_trtyear)) +
-  geom_point(aes(color = as.factor(CO2Trt:NTrt)))+
+  geom_point(aes(color = as.factor(CO2:N)))+
   geom_abline(slope = 1, intercept = 0) + 
   facet_grid(.~ExpYear)+
   ylab("Predicted")+
@@ -537,7 +537,7 @@ ggplot(data = full.data, aes(x = Nitrogen, y = N_trtyear)) +
   theme_linedraw()
 
 ggplot(data = full.data, aes(x = Nitrogen, y = N_trt)) +
-  geom_point(aes(color = as.factor(CO2Trt:NTrt)))+
+  geom_point(aes(color = as.factor(CO2:N)))+
   geom_abline(slope = 1, intercept = 0) + 
   facet_grid(.~ExpYear)+
   ylab("Predicted")+
@@ -545,7 +545,7 @@ ggplot(data = full.data, aes(x = Nitrogen, y = N_trt)) +
   theme_linedraw()
 
 ggplot(data = full.data, aes(x = Nitrogen, y = N_year)) +
-  geom_point(aes(color = as.factor(CO2Trt:NTrt)))+
+  geom_point(aes(color = as.factor(CO2:N)))+
   geom_abline(slope = 1, intercept = 0) + 
   facet_grid(.~ExpYear)+
   ylab("Predicted")+
@@ -561,7 +561,7 @@ ggplot(data = datsub, aes(x = Nitrogen, y = N_avg)) +
   geom_point(aes(color = as.factor(monoFunGroup)))+
   geom_smooth(method = "lm", aes(colour=factor(monoFunGroup))) +
   geom_abline(slope = 1, intercept = 0) + 
-  facet_grid(CO2Trt~NTrt)+
+  facet_grid(CO2~N)+
   ylab("Predicted")+
   xlab("Actual") +
   theme_linedraw()
@@ -570,7 +570,7 @@ ggplot(data = datsub, aes(x = Nitrogen, y = N_amb)) +
   geom_point(aes(color = as.factor(monoFunGroup)))+
   geom_smooth(method = "lm", aes(colour=factor(monoFunGroup))) +
   geom_abline(slope = 1, intercept = 0) + 
-  facet_grid(CO2Trt~NTrt)+
+  facet_grid(CO2~N)+
   ylab("Predicted")+
   xlab("Actual") +
   theme_linedraw()
@@ -579,7 +579,7 @@ ggplot(data = datsub, aes(x = Nitrogen, y = N_trt)) +
   geom_point(aes(color = as.factor(monoFunGroup)))+
   geom_smooth(method = "lm", aes(colour=factor(monoFunGroup))) +
   geom_abline(slope = 1, intercept = 0) + 
-  facet_grid(CO2Trt~NTrt)+
+  facet_grid(CO2~N)+
   ylab("Predicted")+
   xlab("Actual") +
   theme_linedraw()
@@ -588,7 +588,7 @@ ggplot(data = datsub, aes(x = Nitrogen, y = N_trtyear)) +
   geom_point(aes(color = as.factor(monoFunGroup)))+
   geom_smooth(method = "lm", aes(colour=factor(monoFunGroup))) +
   geom_abline(slope = 1, intercept = 0) + 
-  facet_grid(CO2Trt~NTrt)+
+  facet_grid(CO2~N)+
   ylab("Predicted")+
   xlab("Actual") +
   theme_linedraw()
@@ -600,7 +600,7 @@ full.data$diffN_trt <- full.data$N_trt - full.data$Nitrogen
 full.data$diffN_year <- full.data$N_year - full.data$Nitrogen
 full.data$diffN_trtyear <- full.data$N_trtyear - full.data$Nitrogen
 
-long.data <- melt(full.data, id=c('Plot', 'Ring', 'CO2Trt', 'NTrt', 'SR', 'FGR',
+long.data <- melt(full.data, id=c('Plot', 'Ring', 'CO2', 'N', 'SR', 'FGR',
                              'Nitrogen', 'ExpYear'), 
              measure.vars = c('diffN_avg', 'diffN_amb', 'diffN_trt', 'diffN_year',
                               'diffN_trtyear'))
@@ -608,7 +608,7 @@ long.data$absval <- abs(long.data$value)
 
 ggplot(data = long.data[long.data$SR !=1,], aes(x = variable, y = absval)) +
   geom_boxplot(aes(color = as.factor(FGR)))+
-  facet_grid(CO2Trt~NTrt)+
+  facet_grid(CO2~N)+
   ylab("Deviation")+
   xlab("Trait") +
   theme_linedraw() +   
@@ -622,7 +622,7 @@ ggplot(data = long.data, aes(x = variable, y = absval)) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 ggplot(data = long.data[long.data$SR !=1,], aes(x = variable, y = absval)) +
-  geom_boxplot(aes(color = NTrt:CO2Trt))+
+  geom_boxplot(aes(color = N:CO2))+
   ylab("Deviation")+
   xlab("Trait") +
   theme_linedraw() +   

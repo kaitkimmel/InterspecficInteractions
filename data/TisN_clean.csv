@@ -1,4 +1,4 @@
-"","Year","Date","Plot","Ring","CO2Trt","NTrt","SR","FGR","Exp","monospecies","monoFunGroup","WaterTrt","TempTrt","Comments","Carbon","Nitrogen","CNRatio","ExpYear","l.year","YearSq"
+"","Year","Date","Plot","Ring","CO2","N","SR","FGR","Exp","monospecies","monoFunGroup","WaterTrt","TempTrt","Comments","Carbon","Nitrogen","CNRatio","ExpYear","l.year","YearSq"
 "1",1998,"8/1/98",1,1,"Cenrich","Namb",4,2,"M",NA,NA,NA,NA,"Total Above",43.21153,1.004331,43.03,1,0,1
 "2",1998,"8/1/98",2,1,"Cenrich","Namb",1,1,"M","Bouteloua gracilis","C-4",NA,NA,"Total Above",45.45586,1.043206,43.57,1,0,1
 "3",1998,"8/1/98",3,1,"Cenrich","Nenrich",4,1,"S",NA,"Legume",NA,NA,"Total Above",37.69197,1.737204,21.7,1,0,1

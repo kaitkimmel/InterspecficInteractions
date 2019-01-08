@@ -36,6 +36,7 @@
 # load libraries
 library(here)
 library(tidyr)
+library(nlme)
 ###########################################################################
 # load data
 
@@ -117,8 +118,28 @@ for(i in 1:nrow(df1)){
 # Subset TisN for last year of experiment, plot, ring, SR, %N, CO2, & N treatments
 df <- TisN[TisN$ExpYear == max(TisN$ExpYear), c(3:7,16)]
 df <- merge(df, ExpDes, by = c("Plot", "Ring"))
+df$Ring <- as.factor(df$Ring)
 # Check the SR column = number of planted species
 which(df$SR != rowSums(df[,c(7:22)])) # Equals 0 - all good!
+# Create mixture column for the unique species combinations
+# df$mixture <- rep(0, nrow(df))
+# x = 1
+# for (i in 1:(nrow(df)-1)){
+#   if(df$mixture[i] != 0){
+#     df$mixture [i] = df$mixture[i] 
+#   } else{
+#     df$mixture[i] = x
+#     temp = df[df$mixture==0,]
+#   for(j in 1:nrow(temp)){
+#     if(identical(df[i,c(7:22)], temp[j,c(7:22)])) {
+#       rownum <- as.numeric(rownames(temp)[j])
+#       df$mixture[rownum] = x
+#     }
+#   }
+#   }
+#   x = x+1
+# }
+# Get proportion planted
 df[c(7:22)] <- df[c(7:22)]/df$SR
 # Need to put Tissue N as last column
 df <- df[,c(1:5,7:22,6)]
@@ -186,3 +207,38 @@ test= df$PPsum-df$PPwfg1 -df$PPwfg2 -df$PPwfg3 -df$PPwfg4-df$PPbfg12-df$PPbfg13 
 sum(test)
 max(df$PPsum)
 
+# Create dummy variable for ring (not sure why I am doing this...)
+for(t in unique(df$Ring)) {
+  df[paste("RN",t,sep="")] <- ifelse(df$Ring==t,1,0)}
+
+####################################################################
+## Model fitting
+#####################################################################
+##### MODEL 0: All structure 
+# I need to create a mixture column which I am having trouble doing.
+M0 <- lm (Nitrogen ~ factor(SR), data = df)
+anova(M0)
+summary(M0)
+
+#### MODEL 1: IDENTITY + N +CO2 + N:CO2. NB CO2 and Ring are aliased. 
+#  Ring is omitted here as it enters the random effects model as random and we wish to 
+#  use the fixed effects version to feed starting values to the random model later 
+#  so we start this pattern here.
+
+nam1 <- paste("P", 1:15, sep="")		#IDENTITY TERMS
+nam2 <- paste("+N+CO2+N:CO2 ", sep="")
+f1 <- as.formula(paste("Nitrogen ~ ", paste(nam1, collapse= "+"),   paste(nam2)))
+M1 <- lm(f1, data=df)
+anova(M1)
+summary(M1)
+AIC(M1)
+logLik(M1)
+
+######################################################################
+## M1ran: Modification to allow for random Ring
+######################################################################
+# nam1 as before	#IDENTITY TERMS
+# f1 as before 
+M1ran<-lme(f1, data=df, random = ~1|Ring) 
+summary(M1ran)
+anova(M1ran)
