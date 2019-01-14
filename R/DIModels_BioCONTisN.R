@@ -37,6 +37,7 @@
 library(here)
 library(tidyr)
 library(nlme)
+library(dplyr)
 ###########################################################################
 # load data
 
@@ -60,7 +61,7 @@ for(i in 1:(nrow(fungroup)-1)){
   x <- cbind(Sp1, Sp2, Fg1, Fg2)
   df1 <- rbind(df1, x)
 }
-df1$colnums <- seq(23,142, by = 1)
+df1$colnums <- seq(24,143, by = 1)
 
 for(i in 1:nrow(df1)){
   if(df1$Fg1[i] == df1$Fg2[i]){
@@ -122,29 +123,16 @@ df$Ring <- as.factor(df$Ring)
 # Check the SR column = number of planted species
 which(df$SR != rowSums(df[,c(7:22)])) # Equals 0 - all good!
 # Create mixture column for the unique species combinations
-# df$mixture <- rep(0, nrow(df))
-# x = 1
-# for (i in 1:(nrow(df)-1)){
-#   if(df$mixture[i] != 0){
-#     df$mixture [i] = df$mixture[i] 
-#   } else{
-#     df$mixture[i] = x
-#     temp = df[df$mixture==0,]
-#   for(j in 1:nrow(temp)){
-#     if(identical(df[i,c(7:22)], temp[j,c(7:22)])) {
-#       rownum <- as.numeric(rownames(temp)[j])
-#       df$mixture[rownum] = x
-#     }
-#   }
-#   }
-#   x = x+1
-# }
+mixtures <- unique.data.frame(df[,c(7:22)])
+mixtures$mixture <- seq(1:119)
+df <- inner_join(df, mixtures)
+
 # Get proportion planted
 df[c(7:22)] <- df[c(7:22)]/df$SR
 # Need to put Tissue N as last column
-df <- df[,c(1:5,7:22,6)]
+df <- df[,c(1:5,23,7:22,6)]
 # Rename species to P1:16
-colnames(df)[6:21] <- paste("P", 1:16, sep = "")
+colnames(df)[7:22] <- paste("P", 1:16, sep = "")
 
 # Below code is adapted from Connolly et al 2013 and Forest Isbell
 
@@ -181,12 +169,12 @@ PairwiseInt <- function(x,nc){
 
 #############################################################
 # Apply pairwise interaction function - assuming theta = 1
-df <- PairwiseInt(df,5)
+df <- PairwiseInt(df,6)
 # Rename interaction terms to PP1:120
-colnames(df)[23:142] <- paste("PP", 1:120, sep="")
+colnames(df)[24:143] <- paste("PP", 1:120, sep="")
 
 ## Compute sum of pairwise interactions
-df$PPsum <- apply(df[23:142], MARGIN=1, FUN=sum)
+df$PPsum <- apply(df[24:143], MARGIN=1, FUN=sum)
 
 #########################################################
 ## Compute within and between functional group interaction sums
@@ -215,8 +203,9 @@ for(t in unique(df$Ring)) {
 ## Model fitting
 #####################################################################
 ##### MODEL 0: All structure 
-# I need to create a mixture column which I am having trouble doing.
-M0 <- lm (Nitrogen ~ factor(SR), data = df)
+#################################################################
+## mixture is the unique community compositions in the experiments
+M0 <- lm (Nitrogen ~ factor(mixture), data = df)
 anova(M0)
 summary(M0)
 
@@ -242,3 +231,96 @@ logLik(M1)
 M1ran<-lme(f1, data=df, random = ~1|Ring) 
 summary(M1ran)
 anova(M1ran)
+AIC(M1ran)
+logLik(M1ran)
+
+##################################################################
+## M2a: IDENTITY + PAIRWISE INTERACTION + C02+N+N:CO2
+##################################################################
+nam3 <- paste("PP", 1:120, sep="")
+f2 <- as.formula(paste("Nitrogen ~ ", paste(nam1, collapse= "+"), paste(nam2, collapse = "+"),
+                       paste("+"),paste(nam3, collapse = "+")))
+M2a <-lm(f2, data=df)
+anova(M2a)
+summary(M2a) # NA values for some pairwise interactions. 
+logLik(M2a)
+
+#################################################################
+## M2b: IDENTITY + PAIRWISE INTERACTION + C02+N+N:CO2 + Theta
+## NB: Does not work because of NA values estimated in model 2a
+#################################################################
+
+df$vN=as.numeric(df$N)-1
+df$vCO2=as.numeric(df$CO2)-1
+df$vCO2N=df$vCO2*df$vN
+parm1 <- paste("b", 1:15, sep="", paste("*P",1:15,sep=""))
+parm2_CO2 <- paste("e1", sep="", paste("*vCO2",sep=""))
+parm2_N <- paste("e2", sep="", paste("*vN",sep=""))
+parm2_CO2N <- paste("e3", sep="", paste("*vCO2N",sep=""))
+parm3 <- paste("d", 1:36, sep="", paste("*PP",1:36,sep=""))		
+f2b <- as.formula(paste("Nitrogen ~ ", paste(parm1, collapse= "+"),paste("+"),
+                        paste(parm2_CO2),paste("+"),paste(parm2_N),
+                        paste("+"), paste(parm2_CO2N),paste("+"),
+                        paste(parm3, paste("**theta"), collapse= "+")))
+svs <- as.vector(c(coef(M2a),1))
+svs <- svs[-1]
+names(svs) <- c(paste("b", 1:15, sep=""), paste("e", 1:2, sep=""), 
+                paste("d", 1:120, sep=""), "e3", "theta")
+svs
+M2b <- nls(f2b, data=df, start=svs, trace=TRUE)
+
+#################################################################
+##  M3: IDENTITY + CO2 +N +CO2:N + AVERAGE PAIRWISE INTERACTION. 
+#################################################################
+
+f3 <- as.formula(paste("Nitrogen ~ ", paste(nam1, collapse= "+"),paste(nam2, collapse="+"), 
+                       paste("+"),("PPsum")))
+M3 <- lm(f3, data=df)
+anova(M3)						
+summary(M3)
+AIC(M3)
+logLik(M3)
+
+#################################################################
+##  M3: IDENTITY + CO2 +N +CO2:N + AVERAGE PAIRWISE INTERACTION + THETA 
+#################################################################
+
+##################################################################
+## M4: IDENTITY + CO2 + N + N:CO2 + FUNCTIONAL GROUPS
+##################################################################
+f4 <- as.formula(paste("Nitrogen ~ ", paste(nam1, collapse= "+"),
+                        paste(nam2, collapse= "+"), paste("+"),
+                        paste("PPwfg1 + PPwfg2 + PPwfg3 + PPbfg12 + PPbfg13 + PPbfg23")))
+M4 <- lm(f4, data=df)
+anova(M4)
+AIC(M4)
+logLik(M4)
+
+
+## Forest's function
+
+pfun <- function(response.columns,trts) {
+  par(mfrow=c(1,1), mar=c(2,2,1,1), oma=c(2,2,2,0))
+  for(jj in response.columns) {
+    j1 <- sapply(seq(0,2,by=0.01),function(theta) {
+      ndf$TPPsum <-rowSums(as.data.frame((120*ndf[24:143])^theta/120))
+      form <- as.formula(paste(names(ndf)[jj], "~ P1+P2+P3+P4+P5+P6+P7+P8+P9+P10+P11+P12+P13+P14+P15+TPPsum"))
+      fit <- lm(form, data=ndf)
+      cbind(AIC(fit),theta)})
+    jmin <- j1[2,][j1[1,]==min(j1[1,])]
+    
+    plot(j1[2,],j1[1,],ylab="AIC",xlab="theta", type="l", main=paste(names(ndf)[jj],jmin))
+  }
+  
+  mtext("AIC",2,0,outer=T)
+  mtext("theta",1,0.5,outer=T)
+  mtext(trts,3,0.5,outer=T)
+}
+ndf <- df[df$CO2=="Camb" & df$N=="Namb",]
+pfun(23,"Amb_Amb")
+ndf <- df[df$CO2=="Camb" & df$N=="Nenrich",]
+pfun(23,"Amb_Nenr")
+ndf <- df[df$CO2=="Cenrich" & df$N=="Namb",]
+pfun(23,"Cenrich_Amb")
+ndf <- df[df$CO2=="Cenrich" & df$N=="Namb",]
+pfun(23,"Cenrich_Nenrich")
