@@ -38,6 +38,7 @@ library(here)
 library(tidyr)
 library(nlme)
 library(dplyr)
+library(nls2)
 ###########################################################################
 # load data
 
@@ -61,7 +62,7 @@ for(i in 1:(nrow(fungroup)-1)){
   x <- cbind(Sp1, Sp2, Fg1, Fg2)
   df1 <- rbind(df1, x)
 }
-df1$colnums <- seq(24,143, by = 1)
+df1$colnums <- seq(24,143, by = 1) #PP1 - PP120 columns
 
 for(i in 1:nrow(df1)){
   if(df1$Fg1[i] == df1$Fg2[i]){
@@ -124,7 +125,7 @@ df$Ring <- as.factor(df$Ring)
 which(df$SR != rowSums(df[,c(7:22)])) # Equals 0 - all good!
 # Create mixture column for the unique species combinations
 mixtures <- unique.data.frame(df[,c(7:22)])
-mixtures$mixture <- seq(1:119)
+mixtures$mixture <- seq(1:nrow(mixtures))
 df <- inner_join(df, mixtures)
 
 # Get proportion planted
@@ -192,7 +193,7 @@ df$PPbfg34 <- apply(df[df1$colnums[which(df1$Between == 34)]],MARGIN=1,FUN=sum)
 
 # Test that PP variables sum to df$PPsum to test arithmetic
 test= df$PPsum-df$PPwfg1 -df$PPwfg2 -df$PPwfg3 -df$PPwfg4-df$PPbfg12-df$PPbfg13 -df$PPbfg14 -df$PPbfg23 -df$PPbfg24 -df$PPbfg34 
-sum(test)
+mean(test)
 max(df$PPsum)
 
 # Create dummy variable for ring (not sure why I am doing this...)
@@ -215,7 +216,7 @@ summary(M0)
 #  so we start this pattern here.
 
 nam1 <- paste("P", 1:15, sep="")		#IDENTITY TERMS
-nam2 <- paste("+N+CO2+N:CO2 ", sep="")
+nam2 <- paste("+N+CO2+N:CO2 ", sep="") #Environmental Terms
 f1 <- as.formula(paste("Nitrogen ~ ", paste(nam1, collapse= "+"),   paste(nam2)))
 M1 <- lm(f1, data=df)
 anova(M1)
@@ -267,34 +268,148 @@ svs <- svs[-1]
 names(svs) <- c(paste("b", 1:15, sep=""), paste("e", 1:2, sep=""), 
                 paste("d", 1:120, sep=""), "e3", "theta")
 svs
-M2b <- nls(f2b, data=df, start=svs, trace=TRUE)
+M2b <- nls(f2b, data=df, start=svs, algorithm = "port", trace=TRUE)
 
 #################################################################
-##  M3: IDENTITY + CO2 +N +CO2:N + AVERAGE PAIRWISE INTERACTION. 
+##  M3a: IDENTITY + CO2 +N +CO2:N + AVERAGE PAIRWISE INTERACTION. 
 #################################################################
 
 f3 <- as.formula(paste("Nitrogen ~ ", paste(nam1, collapse= "+"),paste(nam2, collapse="+"), 
-                       paste("+"),("PPsum")))
+                       paste("+"),paste("PPsum")))
 M3 <- lm(f3, data=df)
 anova(M3)						
 summary(M3)
 AIC(M3)
 logLik(M3)
 
+###########################################################
+#####   M3ar:  M3a + Ring as random
+###########################################################
+
+M3ar <- lme(f3,random=~1|Ring,  data=df)
+anova(M3ar)						
+summary(M3ar)
+AIC(M3ar)
+logLik(M3ar)
+qqnorm(residuals(M3ar))
+
 #################################################################
-##  M3: IDENTITY + CO2 +N +CO2:N + AVERAGE PAIRWISE INTERACTION + THETA 
+##  M3b: IDENTITY + CO2 +N +CO2:N + AVERAGE PAIRWISE INTERACTION + THETA 
 #################################################################
+parm1 <- paste("b", 1:15, sep="", paste("*P",1:15,sep=""))
+parm2_CO2 <- paste("e1", sep="", paste("*vCO2",sep=""))
+parm2_N <- paste("e2", sep="", paste("*vN",sep=""))
+parm2_CO2N <- paste("e3", sep="", paste("*vCO2N",sep=""))
+parm3_Dav <- paste("dav", paste("*PP",1:120,sep=""))	
+f3b <- as.formula(paste("Nitrogen ~ ",
+                        paste(parm1, collapse= "+"),	paste("+"),
+                        paste(parm2_CO2),paste("+"),paste(parm2_N),paste("+"),paste(parm2_CO2N),paste("+"),
+                        paste(parm3_Dav, paste("**theta"), collapse= "+")))
+svs_Dav <- as.vector(c(coef(M3),1))
+svs_Dav <- svs_Dav[-1]
+names(svs_Dav) <- c(paste("b", 1:15, sep=""),paste("e", 1:2, sep=""),  "dav", "e3", "theta")
+svs_Dav
+M3b<-nls(f3b, data=df,start=svs_Dav, algorithm = "port", trace=TRUE)
+residuals(M3b)
+summary (M3b)
+AIC(M3b, M3)
+logLik(M3b)
+logLik(M3)
+qqnorm(M3b)
+plot(M3b)
+
+#################################################################
+## M3c: IDENTITY + CO2 +N +CO2:N + AVERAGE PAIRWISE INTERACTION 
+## Using Theta estimated from model M3b to create av pairwise 
+## interaction variable. 
+#################################################################
+theta=coef(M3b)[20] # for TPPsum model
+df[163:282]<-df[24:143]^theta
+colnames(df)[163:282] <- paste("TPP", 1:120, sep="")
+df$TPPsum <- apply(df[163:282], MARGIN=1, FUN=sum)
+
+nam2a <- paste("+vCO2+vN+vCO2N ", sep="")
+f3c <- as.formula(paste("Nitrogen ~ ", paste(nam1, collapse= "+"),paste(nam2a, collapse="+"), 
+                        paste("+"),("TPPsum")))
+M3c <- lm(f3c, data=df)
+anova(M3c)						
+summary(M3c)
+AIC(M3a)
+logLik(M3c)
+qqnorm(residuals(M3c))
+
+#################################################################
+## M3cr: IDENTITY + CO2 +N +CO2:N + AVERAGE PAIRWISE INTERACTION 
+## Using Theta estimated from model M3b to create av pairwise 
+## interaction variable and random effect of ring
+#################################################################
+M3cr <- lme(f3c, random = ~1|Ring, data=df)
+anova(M3cr)						
+summary(M3cr)
+AIC(M3cr)
+logLik(M3cr)
+qqnorm(residuals(M3cr))
+plot(M3cr)
+
 
 ##################################################################
-## M4: IDENTITY + CO2 + N + N:CO2 + FUNCTIONAL GROUPS
+## M4a: IDENTITY + CO2 + N + N:CO2 + FUNCTIONAL GROUPS
 ##################################################################
 f4 <- as.formula(paste("Nitrogen ~ ", paste(nam1, collapse= "+"),
                         paste(nam2, collapse= "+"), paste("+"),
-                        paste("PPwfg1 + PPwfg2 + PPwfg3 + PPbfg12 + PPbfg13 + PPbfg23")))
+                        paste("PPwfg1 + PPwfg2 + PPwfg3 + PPwfg4 + PPbfg12 + PPbfg13 + PPbfg14 + PPbfg23 + PPbfg24 + PPbfg34")))
 M4 <- lm(f4, data=df)
 anova(M4)
 AIC(M4)
 logLik(M4)
+
+
+####################################################################
+## M4b: IDENTITY + BLOCK + FUNCTIONAL GROUP INTERACTIONS + THETA 
+####################################################################
+parm1 <- paste("b", 1:16, sep="", paste("*P",1:9,sep=""))
+parm2_CO2 <- paste("e1", sep="", paste("*vCO2",sep=""))
+parm2_N <- paste("e2", sep="", paste("*vN",sep=""))
+parm2_CO2N <- paste("e3", sep="", paste("*vCO2N",sep=""))
+parm5 <- colnames(df[df1$colnums[which(df1$Within == 1)]]) # within FG1
+parm6 <- colnames(df[df1$colnums[which(df1$Within == 2)]]) # within FG2
+parm7 <- colnames(df[df1$colnums[which(df1$Within == 3)]]) # within FG3
+parm8 <- colnames(df[df1$colnums[which(df1$Within == 4)]]) # within FG4
+parm9 <- colnames(df[df1$colnums[which(df1$Between == 12)]]) # between FG1&2
+parm10 <- colnames(df[df1$colnums[which(df1$Between == 13)]]) # between FG1&3
+parm11 <- colnames(df[df1$colnums[which(df1$Between == 14)]]) # between FG1&4
+parm12 <- colnames(df[df1$colnums[which(df1$Between == 23)]]) # between FG2&3
+parm13 <- colnames(df[df1$colnums[which(df1$Between == 24)]]) # between FG2&4
+parm14 <- colnames(df[df1$colnums[which(df1$Between == 34)]]) # between FG3&4
+
+
+f4b <- as.formula(paste("Nitrogen ~ ", paste(parm1, collapse= "+"),paste("+"),
+                        paste(parm2_CO2, collapse= "+"),paste("+"),
+                        paste(parm2_N, collapse= "+"),paste("+"),
+                        paste(parm2_CO2N, collapse= "+"),paste("+"),
+                        paste(paste("dwfg1*"), parm5, paste("**theta"), collapse= "+"),paste("+"),
+                        paste(paste("dwfg2*"), parm6, paste("**theta"), collapse= "+"),paste("+"),
+                        paste(paste("dwfg3*"), parm7, paste("**theta"), collapse= "+"),paste("+"),
+                        paste(paste("dwfg4*"), parm8, paste("**theta"), collapse= "+"),paste("+"),
+                        paste(paste("dbfg12*"), parm9, paste("**theta"), collapse= "+"),paste("+"),
+                        paste(paste("dbfg13*"), parm10, paste("**theta"), collapse= "+"),paste("+"),
+                        paste(paste("dbfg14*"), parm11, paste("**theta"), collapse= "+"),paste("+"),
+                        paste(paste("dbfg23*"), parm12, paste("**theta"), collapse= "+"),paste("+"),
+                        paste(paste("dbfg24*"), parm13, paste("**theta"), collapse= "+"),paste("+"),
+                        paste(paste("dbfg34*"), parm14, paste("**theta"), collapse= "+")       ))
+
+svs <- as.vector(c(coef(M4),1))[-1]
+names(svs) <- c(paste("b", 1:15, sep=""), paste("e", 1:2, sep=""), 
+                "dwfg1", "dwfg2", "dwfg3", "dwfg4", 
+                "dbfg12", "dbfg13", "dbfg14", "dbfg23", "dbfg24","dbfg34", 
+                "e3","theta")
+svs
+M4b<-nls(f4b, data=df, start=svs, trace=TRUE)
+summary(M4b)
+logLik(M4)
+logLik(M4b)
+
+
 
 
 ## Forest's function
