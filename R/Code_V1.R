@@ -128,6 +128,10 @@ ggplot(data = MonoSp, aes(x = monospecies, y = Nitrogen)) +
   ylab("Nitrogen") +
   theme_linedraw() + 
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+ggplot(data = TisN, aes(x=SR, y = Nitrogen)) +
+  geom_point(aes(color = N:CO2)) +
+  geom_smooth(aes(color = N:CO2), method = "lm")
 ## DOES VAR CHANGE WITH MEAN? 
 
 # Need to look at monoculture values in order to predict the community weighted mean

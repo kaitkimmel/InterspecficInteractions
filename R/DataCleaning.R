@@ -1,4 +1,6 @@
-# Data cleaning: 2017 data
+# Data cleaning: 
+
+## 2017 data
 
 # load dataset
 TisN17 <- read.csv(here("data", "CN_dat2017.csv"))
@@ -19,3 +21,5 @@ names(TisN17) <- c("Ring", "Plot",  "CO2", "N", "SR", "Nitrogen")
 # Save cleaned data
 
 write.csv(TisN17, here("data", "TisN17_clean.csv"))
+
+

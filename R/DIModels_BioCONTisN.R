@@ -1,6 +1,6 @@
 ## Diversity-Interaction Modeling: BioCON Tissue N ##
 # Author: Kaitlin Kimmel
-# Date: January, 7 2018
+# Date: January 7 2018
 
 #######################################################################
 ## Purpose: To determine the extent to which interspecific interactions and environmental
@@ -41,6 +41,8 @@ library(dplyr)
 library(nls2)
 library(lmtest)
 library(MuMIn)
+library(AICcmodavg)
+library(ggplot2)
 ###########################################################################
 # load data
 
@@ -220,10 +222,9 @@ summary(M0)
 #  use the fixed effects version to feed starting values to the random model later 
 #  so we start this pattern here.
 ##################################################################################
-
-nam1 <- paste("P", 1:15, sep="")		#IDENTITY TERMS
+nam1 <- paste("P", 1:15, sep="") #IDENTITY TERMS
 nam2 <- paste("+N+CO2+N:CO2 ", sep="") #Environmental Terms
-f1 <- as.formula(paste("Nitrogen ~ ", paste(nam1, collapse= "+"),   paste(nam2)))
+f1 <- as.formula(paste("Nitrogen ~ ", paste(nam1, collapse= "+"), paste(nam2)))
 M1 <- lm(f1, data=df)
 anova(M1)
 summary(M1)
@@ -235,7 +236,7 @@ anova(M1, M0)
 ######################################################################
 # nam1 as before	#IDENTITY TERMS
 # f1 as before 
-M1ran<-lme(f1, data=df, random = ~1|Ring, method = "ML") 
+M1ran<-lme(f1, data=df, random = ~1|Ring/Plot, method = "ML") 
 summary(M1ran)
 anova(M1ran)
 AIC(M1ran)
@@ -257,7 +258,6 @@ anova(M2a, M0)
 ## M2b: IDENTITY + PAIRWISE INTERACTION + C02+N+N:CO2 + Theta
 ## NB: Does not work because of NA values estimated in model 2a
 #################################################################
-
 df$vN <- as.numeric(df$N)-1
 df$vCO2 <- as.numeric(df$CO2)-1
 df$vCO2N <- df$vCO2*df$vN
@@ -265,7 +265,7 @@ parm1 <- paste("b", 1:15, sep="", paste("*P",1:15,sep=""))
 parm2_CO2 <- paste("e1", sep="", paste("*vCO2",sep=""))
 parm2_N <- paste("e2", sep="", paste("*vN",sep=""))
 parm2_CO2N <- paste("e3", sep="", paste("*vCO2N",sep=""))
-parm3 <- paste("d", 1:36, sep="", paste("*PP",1:36,sep=""))		
+parm3 <- paste("d", 1:120, sep="", paste("*PP",1:120,sep=""))		
 f2b <- as.formula(paste("Nitrogen ~ ", paste(parm1, collapse= "+"),paste("+"),
                         paste(parm2_CO2),paste("+"),paste(parm2_N),
                         paste("+"), paste(parm2_CO2N),paste("+"),
@@ -313,7 +313,7 @@ f3b <- as.formula(paste("Nitrogen ~ ",
                         paste(parm1, collapse= "+"),	paste("+"),
                         paste(parm2_CO2),paste("+"),paste(parm2_N),paste("+"),paste(parm2_CO2N),paste("+"),
                         paste(parm3_Dav, paste("**theta"), collapse= "+")))
-svs_Dav <- as.vector(c(coef(M3),1))
+svs_Dav <- as.vector(c(coef(M3a),1))
 svs_Dav <- svs_Dav[-1]
 names(svs_Dav) <- c(paste("b", 1:15, sep=""),paste("e", 1:2, sep=""),  "dav", "e3", "theta")
 svs_Dav
@@ -337,7 +337,7 @@ theta=coef(M3b)[20] # for TPPsum model
 df$vN <- as.numeric(df$N)-1
 df$vCO2 <- as.numeric(df$CO2)-1
 df$vCO2N <- df$vCO2*df$vN
-df[163:282]<-df[24:143]^theta
+df[163:282]<-(120*df[24:143])^theta/120
 colnames(df)[163:282] <- paste("TPP", 1:120, sep="")
 df$TPPsum <- apply(df[163:282], MARGIN=1, FUN=sum)
 
@@ -350,9 +350,9 @@ summary(M3c)
 AIC(M3c)
 logLik(M3c)
 qqnorm(residuals(M3c))
-lrtest(M3, M3c) 
+lrtest(M3a, M3c) 
 anova(M0, M3c)
-# model3c is significantly different than M3 - so theta is different from one
+# model3c is significantly different than M3a - so theta is different from one
 #################################################################
 ## M3cr: IDENTITY + CO2 +N +CO2:N + AVERAGE PAIRWISE INTERACTION 
 ## Using Theta estimated from model M3b to create av pairwise 
@@ -365,7 +365,7 @@ AIC(M3cr)
 logLik(M3cr)
 qqnorm(residuals(M3cr))
 plot(M3cr)
-
+lrtest(M3cr, M3a)
 
 
 ##################################################################
@@ -414,7 +414,7 @@ f4b <- as.formula(paste("Nitrogen ~ ", paste(parm1, collapse= "+"),paste("+"),
                         paste(paste("dbfg24*"), parm13, paste("**theta"), collapse= "+"),paste("+"),
                         paste(paste("dbfg34*"), parm14, paste("**theta"), collapse= "+")       ))
 
-svs <- as.vector(c(coef(M4),1))[-1]
+svs <- as.vector(c(coef(M4a),1))[-1]
 names(svs) <- c(paste("b", 1:15, sep=""), paste("e", 1:2, sep=""), 
                 "dwfg1", "dwfg2", "dwfg3", "dwfg4", 
                 "dbfg12", "dbfg13", "dbfg14", "dbfg23", "dbfg24","dbfg34", 
@@ -422,7 +422,7 @@ names(svs) <- c(paste("b", 1:15, sep=""), paste("e", 1:2, sep=""),
 svs
 M4b<-nls(f4b, data=df, start=svs, trace=TRUE, algorithm = "port")
 summary(M4b)
-logLik(M4)
+logLik(M4a)
 logLik(M4b)
 
 ########################################################################
@@ -434,7 +434,7 @@ df$vN <- as.numeric(df$N)-1
 df$vCO2 <- as.numeric(df$CO2)-1
 df$vCO2N <- df$vCO2*df$vN
 
-df[163:282]<-df[24:143]^theta
+df[163:282]<-(120*df[24:143])^theta/120
 colnames(df)[163:282] <- paste("TPP", 1:120, sep="")
 df$TPPsum <- apply(df[163:282], MARGIN=1, FUN=sum)
 df1$Tcolnums <- df1$colnums + 139
@@ -455,7 +455,7 @@ f4c <- as.formula(paste("Nitrogen ~ ", paste(nam1, collapse= "+"),paste(nam2a,"+
 M4c <- lm(f4c, data = df)
 anova(M4c)
 anova(M4c, M0)
-lrtest(M4c, M4a)
+lrtest(M4a, M4c)
 M4cr<-lme(f4c,random=~1|Ring, data=df, method="ML")
 summary(M4cr)
 logLik(M4cr)
@@ -469,6 +469,8 @@ AICc(M4cr, M3cr, M1ran)
 ##################################################################
 nam2b <- paste("+vCO2+vN ", sep="")
 f4d <- as.formula(paste("Nitrogen ~ ", paste(nam1, collapse= "+"),paste(nam2b,"+"),
+                        paste("TPPwfg1+ TPPwfg2 + TPPwfg3 + TPPwfg4 + TPPbfg12 + TPPbfg13 +
+                              TPPbfg14 + TPPbfg23 + TPPbfg24 + TPPbfg34 +"),
                         paste(nam1, collapse = "*vCO2 *vN +"),
                         paste("*vCO2*vN +"),
                         paste("TPPwfg1*vCO2*vN + TPPwfg2*vCO2*vN+ TPPwfg3 *vCO2*vN+ 
@@ -479,7 +481,71 @@ M4d <- lm(f4d, data = df)
 summary(M4d)
 M4dr <- lme(f4d, random = ~1|Ring, data = df, method = "ML")
 summary(M4dr)
+####################################################################
+## M4er: IDENTITY + CO2 +N +CO2:N + FUNCTIONAL GROUP +
+## Environmental interactions with identity and diversity
+## No three-way interactions
+## Using Theta estimated from model M3b to create av pairwise 
+## interaction variable and random effect of ring
+##################################################################
+f4e <- as.formula(paste("Nitrogen ~ ", paste(nam1, collapse = "+"), paste(nam2a, collapse="+"),
+                        paste("+"),
+                        paste("TPPwfg1+ TPPwfg2 + TPPwfg3 + TPPwfg4 + TPPbfg12 + TPPbfg13 +
+                        TPPbfg14 + TPPbfg23 + TPPbfg24 + TPPbfg34 +"),
+                        paste(nam1, collapse = ":vCO2 +"),
+                        paste(":vCO2 +"), paste(nam1, collapse = ":vN +"),
+                        paste(":vN +"), paste("TPPwfg1:vCO2 + TPPwfg2:vCO2 +
+                        TPPwfg3:vCO2 + TPPwfg4:vCO2 + TPPbfg12:vCO2 + 
+                        TPPbfg13:vCO2 + TPPbfg14:vCO2 + TPPbfg23:vCO2 + 
+                        TPPbfg24:vCO2 + TPPbfg34:vCO2 +"), paste("TPPwfg1:vN +
+                        TPPwfg2:vN + TPPwfg3:vN + TPPwfg4:vN + TPPbfg12:vN + 
+                        TPPbfg13:vN + TPPbfg14:vN + TPPbfg23:vN + TPPbfg24:vN + 
+                                                              TPPbfg34:vN")))
 
+M4e <- lm(f4e, data = df)
+summary(M4e)
+M4er <- lme(f4e, random = ~1|Ring, data = df, method = "ML")
+summary(M4er)
+anova(M4dr, M4er)
+
+####################################################################
+## M4fr: IDENTITY + CO2 +N +CO2:N + FUNCTIONAL GROUP +
+## Environmental interactions with identity
+## No three-way interactions
+## Using Theta estimated from model M3b to create av pairwise 
+## interaction variable and random effect of ring
+##################################################################
+f4f <- as.formula(paste("Nitrogen ~ ", paste(nam1, collapse = "+"), paste(nam2a, collapse="+"),
+                        paste("+"),paste("TPPwfg1+ TPPwfg2 + TPPwfg3 + TPPwfg4 + TPPbfg12 + TPPbfg13 +
+                        TPPbfg14 + TPPbfg23 + TPPbfg24 + TPPbfg34 +"),
+                        paste(nam1, collapse = ":vCO2 +"),
+                        paste(":vCO2 +"), paste(nam1, collapse = ":vN +"),
+                        paste(":vN")))
+M4f <- lm(f4f, data = df)
+summary(M4f)
+M4fr <- lme(f4f, random = ~1|Ring, data = df, method = "ML")
+summary(M4fr)
+####################################################################
+## M4gr: IDENTITY + CO2 +N +CO2:N + FUNCTIONAL GROUP +
+## Environmental interactions with diversity
+## No three-way interactions
+## Using Theta estimated from model M3b to create av pairwise 
+## interaction variable and random effect of ring
+##################################################################
+f4g <- as.formula(paste("Nitrogen ~ ", paste(nam1, collapse = "+"), paste(nam2a, collapse="+"),
+                        paste("+"),paste("TPPwfg1+ TPPwfg2 + TPPwfg3 + TPPwfg4 + TPPbfg12 + TPPbfg13 +
+                        TPPbfg14 + TPPbfg23 + TPPbfg24 + TPPbfg34 +"),
+                        paste("TPPwfg1:vCO2 + TPPwfg2:vCO2 + TPPwfg3:vCO2 + 
+                        TPPwfg4:vCO2 + TPPbfg12:vCO2 + TPPbfg13:vCO2 + TPPbfg14:vCO2 + 
+                        TPPbfg23:vCO2 + TPPbfg24:vCO2 + TPPbfg34:vCO2 +"), paste("TPPwfg1:vN +
+                                                                                       TPPwfg2:vN + TPPwfg3:vN + TPPwfg4:vN + TPPbfg12:vN + 
+                                                                                       TPPbfg13:vN + TPPbfg14:vN + TPPbfg23:vN + TPPbfg24:vN + 
+                                                                                       TPPbfg34:vN")))
+
+M4g <- lm(f4g, data = df)
+summary(M4g)
+M4gr <- lme(f4g, random = ~1|Ring, data = df, method = "ML")
+ anova(M4cr, M4dr, M4er, M4fr, M4gr)
 
 ####################################################################
 ## M3dr: IDENTITY + CO2 +N +CO2:N + AVERAGE PAIRWISE INTERACTION +
@@ -549,6 +615,7 @@ anova(M3fr)
 
 anova(M3gr, M3cr, M3fr, M3er)
 
+anova(M3gr, M4cr)
 
 
 ## Forest's function
@@ -578,3 +645,50 @@ ndf <- df[df$CO2=="Cenrich" & df$N=="Namb",]
 pfun(23,"Cenrich_Amb")
 ndf <- df[df$CO2=="Cenrich" & df$N=="Namb",]
 pfun(23,"Cenrich_Nenrich")
+
+
+
+## Graphs
+
+x <- predictSE.lme(M3gr, newdata = df)
+y <- predictSE.lme(M3cr, newdata = df)
+newdf <- cbind(x$fit, y$fit, df)
+names(newdf)[c(1,2)] <- c("gr.fit", "cr.fit")
+avgpred<- aggregate(newdf[,c(1,2)], by = list(newdf[,"CO2"], newdf[,"N"], newdf[,"SR"]), FUN = "mean")
+names(avgpred)[c(1:3)] <- c("CO2", "N", "SR")
+
+cbp1 <- c("#999999","#009E73", "#56B4E9",  "#E69F00")
+ggplot(aes(x = Nitrogen, y = gr.fit), data = newdf) + 
+  geom_point(aes(color = N:CO2)) +
+  geom_abline(aes(slope = 1, intercept = 0)) + 
+  scale_color_manual( values = cbp1) + 
+  labs(x = "Actual", y = "Predicted", color = "Treatment") + 
+  theme_classic()
+
+
+ggplot(data = df) + 
+  geom_point(aes(x = SR, y = Nitrogen, color = N:CO2, alpha = .2, size = .5)) + 
+  geom_line(data = avgpred, aes(x = SR, y = gr.fit, color = N:CO2, size = .5)) + 
+  geom_point(data = avgpred, aes(x = SR, y = gr.fit, color = N:CO2, size = 1)) + 
+  scale_x_continuous(breaks = c(1,4,9,16)) + 
+  scale_color_manual(values = cbp1) +
+  labs(x = "Richness", y = "Tissue %N", color = "Treatment") + 
+  guides(alpha = FALSE, size = FALSE) +
+  theme_classic()
+
+monosp <- unique(TisN[,c("Plot", "monospecies")])
+monoplots <-merge(TisN17, monosp)
+monoplots <- monoplots[-which(is.na(monoplots$monospecies)),]
+
+ggplot(aes(x = monospecies, y = Nitrogen), data = monoplots) +
+  geom_boxplot(aes(color = N:CO2)) +
+  scale_color_manual(values = cbp1) +
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 40, hjust = 1)) +
+  labs(x= "Species", y = "Tissue %N", color = "Treatment")
+
+ggplot(aes(x = as.factor(SR), y = Nitrogen), data = df) + 
+  geom_boxplot(aes(color = N:CO2)) + 
+  scale_color_manual(values = cbp1) + 
+  theme_classic() + 
+  labs(x = "Species Richness", y = "Tissue %N", color = "Treatment")
