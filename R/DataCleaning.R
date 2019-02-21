@@ -1,4 +1,48 @@
 # Data cleaning: 
+library(dplyr)
+library(here)
+
+## 1994-2016 data 
+
+TisN <- read.csv(here("data", "PercN.csv"), na.strings=c("","NA"))
+names(TisN) <- c("Year", "Date", "Plot", "Ring", "CO2", "N", "SR", "FGR",
+                 "Exp", "monospecies", "monoFunGroup", "WaterTrt", "TempTrt", "Comments",
+                 "Carbon", "Nitrogen", "CNRatio")
+## Data cleaning - Species names ##
+# Need to change species names to Genus species that are in GenusSpecies format
+TisN$monospecies<- gsub(pattern = "AchilleaMillefolium", replacement = "Achillea millefolium", TisN$monospecies)
+TisN$monospecies<- gsub(pattern = "BoutelouaGracilis", replacement = "Bouteloua gracilis", TisN$monospecies)
+TisN$monospecies<- gsub(pattern = "AsclepiasTuberosa", replacement = "Asclepias tuberosa", TisN$monospecies)
+TisN$monospecies<- gsub(pattern = "SchizachyriumScoparium", replacement = "Schizachyrium scoparium", TisN$monospecies)
+TisN$monospecies<- gsub(pattern = "AmorphaCanescens", replacement = "Amorpha canescens", TisN$monospecies)
+TisN$monospecies<- gsub(pattern = "BromusInermis", replacement = "Bromus inermis", TisN$monospecies)
+TisN$monospecies<- gsub(pattern = "AgropyronRepens", replacement = "Agropyron repens", TisN$monospecies)
+TisN$monospecies<- gsub(pattern = "LespedezaCapitata", replacement = "Lespedeza capitata", TisN$monospecies)
+TisN$monospecies<- gsub(pattern = "PetalostemumVillosum", replacement = "Petalostemum villosum", TisN$monospecies)
+TisN$monospecies<- gsub(pattern = "PoaPratensis", replacement = "Poa pratensis", TisN$monospecies)
+TisN$monospecies<- gsub(pattern = "SolidagoRigida", replacement = "Solidago rigida", TisN$monospecies)
+TisN$monospecies<- gsub(pattern = "KoeleriaCristata", replacement = "Koeleria cristata", TisN$monospecies)
+TisN$monospecies<- gsub(pattern = "LupinusPerennis", replacement = "Lupinus perennis", TisN$monospecies)
+TisN$monospecies<- gsub(pattern = "AndropogonGerardi", replacement = "Andropogon gerardi", TisN$monospecies)
+TisN$monospecies<- gsub(pattern = "SorghastrumNutans", replacement = "Sorghastrum nutans", TisN$monospecies)
+
+## Data cleaning - getting columns and rows correct ##
+TisN <- TisN[-which(is.na(TisN$Nitrogen)),] # get rid of rows without tissue N values
+TisN <- subset(TisN, Comments == "Total Above") # Aboveground tissue N only
+TisN$ExpYear <- TisN$Year-1997 #Create experiment year column
+TisN$l.year <- log(TisN$ExpYear) #Log year column
+TisN$YearSq <- TisN$ExpYear^2 # Year squared column
+
+# Get rid of drought plots
+TisN <- TisN[-which(TisN$WaterTrt == 'H2Oneg'),]
+# Get rid of warmed plots; some years Ht v HT
+TisN$TempTrt <- gsub(pattern = "Htelv", replacement = "HTelv", TisN$TempTrt)
+TisN$TempTrt <- gsub(pattern = "Htamb", replacement = "HTamb", TisN$TempTrt)
+TisN <- TisN[-which(TisN$TempTrt == 'HTelv'),]
+
+# save cleaned dataset
+write.csv(TisN, here("data", "TisN_clean.csv"))
+
 
 ## 2017 data
 
@@ -23,3 +67,11 @@ names(TisN17) <- c("Ring", "Plot",  "CO2", "N", "SR", "Nitrogen")
 write.csv(TisN17, here("data", "TisN17_clean.csv"))
 
 
+# Combine 2017 with rest
+TisN17$Year = as.numeric(2017)
+TisN_sub <- TisN[,c(1,3:7,16)]
+
+totdat <- bind_rows(TisN17, TisN_sub)
+totdat$ExpYear <- totdat$Year-1997
+
+write.csv(totdat,here("data", "total_clean.csv"), row.names = TRUE)
