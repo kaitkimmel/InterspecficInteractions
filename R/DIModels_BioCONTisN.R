@@ -43,6 +43,7 @@ library(lmtest)
 library(MuMIn)
 library(AICcmodavg)
 library(ggplot2)
+library(gridExtra)
 ###########################################################################
 # load data
 
@@ -320,9 +321,9 @@ svs_Dav
 M3b<-nls(f3b, data=df,start=svs_Dav, algorithm = "port", trace=TRUE)
 residuals(M3b)
 summary(M3b)
-AIC(M3b, M3)
+AIC(M3b, M3a)
 logLik(M3b)
-logLik(M3)
+logLik(M3a)
 qqnorm(M3b)
 plot(M3b)
 res <- summary(M3b)$residuals
@@ -365,7 +366,7 @@ AIC(M3cr)
 logLik(M3cr)
 qqnorm(residuals(M3cr))
 plot(M3cr)
-lrtest(M3cr, M3a)
+lrtest(M3cr, M3ar)
 
 
 ##################################################################
@@ -459,8 +460,10 @@ lrtest(M4a, M4c)
 M4cr<-lme(f4c,random=~1|Ring, data=df, method="ML")
 summary(M4cr)
 logLik(M4cr)
+lrtest(M4a, M4cr)
 anova(M4cr, M3cr, M1ran)
-AICc(M4cr, M3cr, M1ran)
+AICc(M4cr)
+AICc(M3cr)
 ####################################################################
 ## M4dr: IDENTITY + CO2 +N +CO2:N + FUNCTIONAL GROUP +
 ## Environmental interactions with identity and diversity
@@ -545,7 +548,7 @@ f4g <- as.formula(paste("Nitrogen ~ ", paste(nam1, collapse = "+"), paste(nam2a,
 M4g <- lm(f4g, data = df)
 summary(M4g)
 M4gr <- lme(f4g, random = ~1|Ring, data = df, method = "ML")
- anova(M4cr, M4dr, M4er, M4fr, M4gr)
+anova(M4cr, M4dr, M4er, M4fr, M4gr)
 
 ####################################################################
 ## M3dr: IDENTITY + CO2 +N +CO2:N + AVERAGE PAIRWISE INTERACTION +
@@ -615,80 +618,115 @@ anova(M3fr)
 
 anova(M3gr, M3cr, M3fr, M3er)
 
-anova(M3gr, M4cr)
-
-
-## Forest's function
-
-pfun <- function(response.columns,trts) {
-  par(mfrow=c(1,1), mar=c(2,2,1,1), oma=c(2,2,2,0))
-  for(jj in response.columns) {
-    j1 <- sapply(seq(0,2,by=0.01),function(theta) {
-      ndf$TPPsum <-rowSums(as.data.frame((120*ndf[24:143])^theta/120))
-      form <- as.formula(paste(names(ndf)[jj], "~ P1+P2+P3+P4+P5+P6+P7+P8+P9+P10+P11+P12+P13+P14+P15+TPPsum"))
-      fit <- lm(form, data=ndf)
-      cbind(AIC(fit),theta)})
-    jmin <- j1[2,][j1[1,]==min(j1[1,])]
-    
-    plot(j1[2,],j1[1,],ylab="AIC",xlab="theta", type="l", main=paste(names(ndf)[jj],jmin))
-  }
-  
-  mtext("AIC",2,0,outer=T)
-  mtext("theta",1,0.5,outer=T)
-  mtext(trts,3,0.5,outer=T)
-}
-ndf <- df[df$CO2=="Camb" & df$N=="Namb",]
-pfun(23,"Amb_Amb")
-ndf <- df[df$CO2=="Camb" & df$N=="Nenrich",]
-pfun(23,"Amb_Nenr")
-ndf <- df[df$CO2=="Cenrich" & df$N=="Namb",]
-pfun(23,"Cenrich_Amb")
-ndf <- df[df$CO2=="Cenrich" & df$N=="Namb",]
-pfun(23,"Cenrich_Nenrich")
-
+anova(M3gr, M4cr, M3cr)
 
 
 ## Graphs
 
 x <- predictSE.lme(M3gr, newdata = df)
-y <- predictSE.lme(M3cr, newdata = df)
+y <- predictSE.lme(M4cr, newdata = df)
 newdf <- cbind(x$fit, y$fit, df)
-names(newdf)[c(1,2)] <- c("gr.fit", "cr.fit")
+names(newdf)[c(1,2)] <- c("dav.fit", "fun.fit")
 avgpred<- aggregate(newdf[,c(1,2)], by = list(newdf[,"CO2"], newdf[,"N"], newdf[,"SR"]), FUN = "mean")
 names(avgpred)[c(1:3)] <- c("CO2", "N", "SR")
 
 cbp1 <- c("#999999","#009E73", "#56B4E9",  "#E69F00")
-ggplot(aes(x = Nitrogen, y = gr.fit), data = newdf) + 
+pdf(here("Figures","predictedvfitted.pdf"), height = 4, width = 10)
+gr1 <- ggplot(aes(x = Nitrogen, y = dav.fit), data = newdf) + 
   geom_point(aes(color = N:CO2)) +
+  geom_smooth(method= "lm", linetype = "dashed") + 
   geom_abline(aes(slope = 1, intercept = 0)) + 
   scale_color_manual( values = cbp1) + 
-  labs(x = "Actual", y = "Predicted", color = "Treatment") + 
+  labs(x = "Actual", y = "Predicted", color = "Treatment", title = "Average Diversity Model") + 
+  theme_classic() + 
+  theme(legend.position = "none")
+
+gr2 <- ggplot(aes(x = Nitrogen, y = fun.fit), data = newdf) + 
+  geom_point(aes(color = N:CO2)) +
+  geom_smooth(method= "lm", linetype = "dashed") + 
+  geom_abline(aes(slope = 1, intercept = 0)) + 
+  scale_color_manual( values = cbp1) + 
+  labs(x = "Actual", y = "Predicted", color = "Treatment", title = "Functional group model") + 
+  theme_classic()+
+  theme(legend.position = "none")
+
+gr3 <- ggplot(aes(x = fun.fit, y = dav.fit), data = newdf) + 
+  geom_point(aes(color = N:CO2)) + 
+  geom_smooth(method = "lm", linetype = "dashed") + 
+  scale_x_continuous(breaks = c(1,2)) + 
+  scale_color_manual(values = cbp1) +
+  geom_abline(aes(slope = 1, intercept = 0)) +
+  labs(x = "Functional group prediction", y = "Dav prediction", color = "Treatment",
+       title = "Functional Group v. Dav Predictions") + 
   theme_classic()
 
+grid.arrange(gr1,gr2, gr3, nrow = 1, widths = c(1,1,1.5))
 
+dev.off()
+
+pdf(here("Figures", "dav_preds.pdf"), height = 4, width = 6)
 ggplot(data = df) + 
-  geom_point(aes(x = SR, y = Nitrogen, color = N:CO2, alpha = .2, size = .5)) + 
-  geom_line(data = avgpred, aes(x = SR, y = gr.fit, color = N:CO2, size = .5)) + 
-  geom_point(data = avgpred, aes(x = SR, y = gr.fit, color = N:CO2, size = 1)) + 
+  geom_point(aes(x = SR, y = Nitrogen, color = N:CO2, alpha = .2)) + 
+  geom_line(data = avgpred, aes(x = SR, y = dav.fit, color = N:CO2)) + 
+  geom_point(data = avgpred, aes(x = SR, y = dav.fit, color = N:CO2, size = 1)) + 
   scale_x_continuous(breaks = c(1,4,9,16)) + 
   scale_color_manual(values = cbp1) +
   labs(x = "Richness", y = "Tissue %N", color = "Treatment") + 
   guides(alpha = FALSE, size = FALSE) +
   theme_classic()
+dev.off()
+
+pdf(here("Figures", "fungroup_preds.pdf"), height = 4, width = 6)
+ggplot(data = df) + 
+  geom_point(aes(x = SR, y = Nitrogen, color = N:CO2, alpha = .2)) + 
+  geom_line(data = avgpred, aes(x = SR, y = fun.fit, color = N:CO2)) + 
+  geom_point(data = avgpred, aes(x = SR, y = fun.fit, color = N:CO2, size = 1)) + 
+  scale_x_continuous(breaks = c(1,4,9,16)) + 
+  scale_color_manual(values = cbp1) +
+  labs(x = "Richness", y = "Tissue %N", color = "Treatment") + 
+  guides(alpha = FALSE, size = FALSE) +
+  theme_classic()
+dev.off()
+
 
 monosp <- unique(TisN[,c("Plot", "monospecies")])
 monoplots <-merge(TisN17, monosp)
 monoplots <- monoplots[-which(is.na(monoplots$monospecies)),]
 
+pdf(here("Figures", "monoplotsN.pdf"), height = 4, width = 6)
 ggplot(aes(x = monospecies, y = Nitrogen), data = monoplots) +
   geom_boxplot(aes(color = N:CO2)) +
   scale_color_manual(values = cbp1) +
   theme_classic()+
-  theme(axis.text.x = element_text(angle = 40, hjust = 1)) +
+  theme(axis.text.x = element_text(angle = 75, hjust = 1)) +
   labs(x= "Species", y = "Tissue %N", color = "Treatment")
+dev.off()
+
 
 ggplot(aes(x = as.factor(SR), y = Nitrogen), data = df) + 
   geom_boxplot(aes(color = N:CO2)) + 
   scale_color_manual(values = cbp1) + 
   theme_classic() + 
   labs(x = "Species Richness", y = "Tissue %N", color = "Treatment")
+
+# Attempt at graph with functional group estimates
+# Estimates and standard error 
+fgest <- as.data.frame(summary(M4cr)$tTable[c(20:29),c(1,2)])
+fgest$int_type <- c("Forb-Forb","Legume-Legume", "C3grass-C3grass", "C4grass-C4grass", 
+               "Forb-Legume", "Forb-C3grass", "Forb-C4grass", "Legume-C3grass", 
+               "Legume-C4grass", "C3grass-C4Grass")
+
+pdf(here("Figures", "fungroupest.pdf"), height = 3, width = 4.5)
+ggplot(aes(x = int_type, y = Value), data = fgest) +
+  geom_point()+
+  geom_errorbar(aes(x = int_type, ymax = Value + Std.Error, ymin = Value - Std.Error), 
+                width = 0.3)+
+  scale_x_discrete(limits = c("Forb-Forb","Legume-Legume", "C3grass-C3grass", 
+                              "C4grass-C4grass", "Forb-Legume", "Forb-C3grass", 
+                              "Forb-C4grass", "Legume-C3grass", 
+                              "Legume-C4grass", "C3grass-C4Grass")) + 
+  theme_classic() +
+  labs (x = "Interaction type", y = "Estimate") + 
+  theme(axis.text.x = element_text(angle = 75, hjust = 1)) + 
+  geom_abline(aes(slope=0, intercept = 0), linetype = "dashed")
+dev.off()
