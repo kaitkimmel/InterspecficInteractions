@@ -53,7 +53,7 @@ TisN17 <- read.csv(here("data", "TisN17_clean.csv"), row.names = 1)
 # dataset with % n and % c from aboveground biomass
 TisN <- read.csv(here("data", "TisN_clean.csv"),row.names = 1)
 # Experimental design of BioCON
-ExpDes <- read.csv(here("data", "BioCONExpDes.csv"))
+ExpDes <- read.csv(here("data", "ExpDes.csv"))
 
 ###########################################################################
 # Create a datafame with the functional groups to be used later
@@ -213,7 +213,7 @@ for(t in unique(df$Ring)) {
 ##### MODEL 0: All structure 
 #################################################################
 ## mixture is the unique community compositions in the experiments
-M0 <- lm (Nitrogen ~ factor(mixture), data = df)
+M0 <- lm (Nitrogen ~ factor(mixture) + N*CO2, data = df)
 anova(M0)
 summary(M0)
 
@@ -624,7 +624,7 @@ anova(M3gr, M4cr, M3cr)
 ## Graphs
 
 x <- predictSE.lme(M3gr, newdata = df)
-y <- predictSE.lme(M4cr, newdata = df)
+y <- predictSE.lme(M4cr, newdata = df) # try level = 1 and level = 0 
 newdf <- cbind(x$fit, y$fit, df)
 names(newdf)[c(1,2)] <- c("dav.fit", "fun.fit")
 avgpred<- aggregate(newdf[,c(1,2)], by = list(newdf[,"CO2"], newdf[,"N"], newdf[,"SR"]), FUN = "mean")
@@ -730,3 +730,36 @@ ggplot(aes(x = int_type, y = Value), data = fgest) +
   theme(axis.text.x = element_text(angle = 75, hjust = 1)) + 
   geom_abline(aes(slope=0, intercept = 0), linetype = "dashed")
 dev.off()
+
+
+z <- predictSE.lme(M3gr, df)
+df2 <- cbind(z, df)
+df2 <- df2[df2$SR == 1,]
+df2 <- df2[,c(1:6,25)]
+df2 <- merge(df2,monosp)
+
+df2avg <- aggregate(df2[,c(2)], by = list(df2[,"CO2"], df2[,"N"], df2[,"monospecies"]), 
+                    FUN = "mean")
+names(df2avg) <- c("CO2", "N", "monospecies", "predicted")
+
+pdf(here("Figures", "MonoPreds.pdf"), height = 4, width = 10 )
+ggplot(data = df2) +
+  geom_point(aes(x = monospecies, y = Nitrogen, color = N:CO2, alpha = .2), 
+             position=position_dodge(width = .9)) +
+  geom_point(aes(x = monospecies, y = predicted, color = N:CO2), shape = "-", cex = 8, 
+             data = df2avg, 
+             position = position_dodge(width = .9)) +
+  scale_color_manual(values = cbp1) + 
+  geom_vline(xintercept = seq(1.5,16.5, by = 1), lty = "dotted") +
+  labs (x = "MonoSpecies", y = "Estimate", color = "Treatment") + 
+  theme_classic() +
+  guides(alpha = FALSE) +
+  theme(axis.text.x = element_text(angle = 80, hjust = 1),panel.grid.minor.x=element_line())  
+dev.off()
+
+
+aggregate(newdf[,"dav.fit"], by = list(newdf[,"N"]), FUN = "mean")
+(1.2021769-0.9675027)*100/0.9675027 #24.25566
+
+aggregate(newdf[,"dav.fit"], by = list(newdf[,"SR"]), FUN = "mean")
+(0.8996938 - 1.2290300)*100/1.2290300 #-26.79643

@@ -8,6 +8,7 @@ TisN <- read.csv(here("data", "PercN.csv"), na.strings=c("","NA"))
 names(TisN) <- c("Year", "Date", "Plot", "Ring", "CO2", "N", "SR", "FGR",
                  "Exp", "monospecies", "monoFunGroup", "WaterTrt", "TempTrt", "Comments",
                  "Carbon", "Nitrogen", "CNRatio")
+CDRsp <- read.csv(here("data", "CDRSPDat.csv"))
 ## Data cleaning - Species names ##
 # Need to change species names to Genus species that are in GenusSpecies format
 TisN$monospecies<- gsub(pattern = "AchilleaMillefolium", replacement = "Achillea millefolium", TisN$monospecies)
@@ -43,6 +44,13 @@ TisN <- TisN[-which(TisN$TempTrt == 'HTelv'),]
 # save cleaned dataset
 write.csv(TisN, here("data", "TisN_clean.csv"))
 
+# monoplots
+monoplots <- TisN[which(TisN$SR ==1),c(3,10)]
+monoplots <- unique(monoplots)
+colnames(CDRsp)[1] <- "monospecies"
+CDRsp$monospecies[5] <- "Achillea millefolium"
+monoplots <- merge(monoplots, CDRsp[,c(1,2)])
+write.csv(monoplots, here("data", "monoplots.csv"))
 
 ## 2017 data
 
@@ -69,6 +77,8 @@ write.csv(TisN17, here("data", "TisN17_clean.csv"))
 
 # Combine 2017 with rest
 TisN17$Year = as.numeric(2017)
+plotsub <- unique(TisN17$Plot) # want to look at the same set of plots through time
+TisN <- TisN[TisN$Plot %in% plotsub,]
 TisN_sub <- TisN[,c(1,3:7,16)]
 
 totdat <- bind_rows(TisN17, TisN_sub)
