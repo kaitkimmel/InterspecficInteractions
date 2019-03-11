@@ -48,6 +48,7 @@ write.csv(TisN, here("data", "TisN_clean.csv"))
 monoplots <- TisN[which(TisN$SR ==1),c(3,10)]
 monoplots <- unique(monoplots)
 colnames(CDRsp)[1] <- "monospecies"
+CDRsp$monospecies <- as.character(CDRsp$monospecies)
 CDRsp$monospecies[5] <- "Achillea millefolium"
 monoplots <- merge(monoplots, CDRsp[,c(1,2)])
 write.csv(monoplots, here("data", "monoplots.csv"))

@@ -211,6 +211,10 @@ df$s.year <- df$ExpYear^2
 
 #####################################################################
 
+M0 <- lme(Nitrogen ~ P1 + P2 + P3 + P4 + P5 + P6 + P7 + P8 + P9 + 
+             P10 + P11 + P12 + P13 + P14 + P15, random = ~1|Ring, data=df, method = "ML",
+           correlation = corCAR1(form = ~ 1 | Ring/Plot))
+summary(M0)
 #################################################################
 ## M1a: IDENTITY + + AVERAGE PAIRWISE INTERACTION + CO2 + N + CO2:N + LINEAR YEAR. 
 #################################################################
@@ -542,7 +546,7 @@ ggplot(aes(x = Year, y = fit), data = avgpred) +
   facet_wrap(~SR) + 
   geom_point(aes(color = N:CO2, x = Year, y = fit), shape = 2, data = avgpred1) +
   scale_color_manual( values = cbp1) +
-  labs(x = "Experiment Year", y = "Tissue %N", color = "Richness") +
+  labs(x = "Experiment Year", y = "Tissue %N", color = "Treatment") +
   theme_linedraw() +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
 
@@ -574,14 +578,231 @@ ggplot(aes(x = Year, y = Nitrogen), data = monocul) +
   scale_color_manual(values = pal) +
   theme_linedraw() +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-  labs(x= "ExpYear", y = "Tissue %N", color = "Species")
+  labs(x= "ExpYear", y = "Tissue %N", color = "Species") 
+  
 
+monocul.pred <- merge(monoplots, newdf)
+monocul.pred$monospecies <- factor(monocul.pred$monospecies, 
+                              levels = c("Achillea millefolium", "Asclepias tuberosa",
+                                         "Solidago rigida", "Amorpha canescens", 
+                                         "Lespedeza capitata", "Lupinus perennis", 
+                                         "Petalostemum villosum","Agropyron repens", 
+                                         "Bromus inermis", "Koeleria cristata", 
+                                         "Poa pratensis", "Andropogon gerardi", 
+                                         "Bouteloua gracilis", "Schizachyrium scoparium",
+                                         "Sorghastrum nutans"))
 
-
-ggplot(aes(x = Year, y = fit), data = monocul.pred) +
+ggplot(aes(x = ExpYear, y = fit), data = monocul.pred) +
   geom_line(aes(color = monospecies)) +
-  facet_wrap(~N:CO2) + 
+  geom_point(aes(x = Year, y = Nitrogen, color = monospecies, alpha = .5), data = monocul)+
+  facet_wrap(~N:CO2) +
+  scale_color_manual(values = pal) +
   theme_linedraw() +
+  ylim(c(0.3,4.4)) + 
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-  labs(x= "ExpYear", y = "Tissue %N", color = "Species")
+  labs(x= "Experiment Year", y = "Tissue %N", color = "Species") + 
+  guides(alpha = FALSE)
 
+
+coef.df <- as.data.frame(summary(M4c4)$coefficients$fixed)
+
+identitypred <- predictSE.lme(M0, df) 
+identitypred <- cbind(identitypred, df)
+identitypred$rat <- identitypred$Nitrogen/identitypred$fit
+
+
+## Schiz amb year 1 as reference
+gr.dat <- data.frame(Bar = NA, TissueN = NA)
+Schizplots <- monoplots[monoplots$monospecies == "Schizachyrium scoparium","Plot"]
+Schiz.amb <- c("Schizamb", unique(newdf[newdf$Plot %in% Schizplots & newdf$ExpYear == 1 
+                        & newdf$CO2 == "Camb" & newdf$N == "Namb", "fit"]))
+Schiz.N <- c("SchizN", unique(newdf[newdf$Plot %in% Schizplots & newdf$ExpYear == 1 
+                                        & newdf$CO2 == "Camb" & newdf$N == "Nenrich", "fit"]))
+Schiz.CO2 <- c("SchizCO2", unique(newdf[newdf$Plot %in% Schizplots & newdf$ExpYear == 1 
+                                        & newdf$CO2 == "Cenrich" & newdf$N == "Namb", "fit"]))
+Schiz.CO2N <- c("SchizCO2N", unique(newdf[newdf$Plot %in% Schizplots & newdf$ExpYear == 1 
+                                        & newdf$CO2 == "Cenrich" & newdf$N == "Nenrich", "fit"]))
+SpeciesEf <- c("SpeciesEF", mean(newdf[!(newdf$Plot %in% Schizplots) & newdf$ExpYear == 1 
+                   & newdf$CO2 == "Camb" & newdf$N == "Namb", "fit"]))
+YearEf <- c("YearEF", mean(newdf[newdf$Plot %in% Schizplots & newdf$ExpYear != 1 & 
+                                   newdf$CO2 == "Camb" & newdf$N == "Namb", "fit"]))
+DivEf <- c("DivEF", mean(newdf[newdf$SR == 16 & newdf$ExpYear == 1 & 
+                                   newdf$CO2 == "Camb" & newdf$N == "Namb", "fit"]))
+SpeciesYearEF <- c("SpeciesYearEF", mean(newdf[!(newdf$Plot %in% Schizplots) & newdf$ExpYear != 1 
+                                         & newdf$CO2 == "Camb" & newdf$N == "Namb", "fit"]))
+DivYearEF <- c("DivYearEF", mean(newdf[newdf$SR == 16 & newdf$ExpYear != 1 & 
+                                     newdf$CO2 == "Camb" & newdf$N == "Namb", "fit"]))
+DivNEF <- c("DivNEF", mean(newdf[newdf$SR == 16 & newdf$ExpYear == 1 & 
+                                    newdf$CO2 == "Camb" & newdf$N == "Nenrich", "fit"]))
+DivCO2EF <- c("DivCO2EF", mean(newdf[newdf$SR == 16 & newdf$ExpYear == 1 & 
+                                   newdf$CO2 == "Cenrich" & newdf$N == "Namb", "fit"]))
+DivCO2NEF <- c("DivCO2NEF", mean(newdf[newdf$SR == 16 & newdf$ExpYear == 1 & 
+                                       newdf$CO2 == "Cenrich" & newdf$N == "Nenrich", "fit"]))
+gr.dat <- rbind(gr.dat, Schiz.amb, Schiz.N, Schiz.CO2, Schiz.CO2N, SpeciesEf, YearEf, DivEf, 
+                SpeciesYearEF, DivYearEF, DivNEF, DivCO2EF, DivCO2NEF)
+gr.dat <- gr.dat [-1,]
+gr.dat$TissueN <- as.numeric(gr.dat$TissueN)
+gr.dat$Bar <- factor(gr.dat$Bar, 
+                     levels = c("Schizamb", "SchizN", "SchizCO2",
+                                "SchizCO2N", "SpeciesEF", "DivEF", 
+                                "DivNEF","DivCO2EF","DivCO2NEF","YearEF", "SpeciesYearEF",
+                                "DivYearEF"))
+gr.dat$diff <- gr.dat$TissueN - gr.dat$TissueN[1]
+
+ggplot()+
+  geom_bar(aes(x=Bar, y = TissueN), data = gr.dat, stat = "identity")+
+  labs(x = "", y = "Tissue %N") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplot()+
+  geom_bar(aes(x=Bar, y = diff), data = gr.dat[gr.dat$Bar!="Schizamb",], stat = "identity")+
+  geom_hline(yintercept = 0) +
+  labs(x = "", y = "Difference in Tissue %N") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+## Average across all years
+
+gr.dat1 <- data.frame(Bar = NA, TissueN = NA, se = NA)
+se <- function(x) sqrt(var(x)/length(x))
+
+monoamb <- c("MonoAmb", mean(newdf[newdf$SR == 1 & newdf$CO2 == "Camb" & 
+                                     newdf$N == "Namb", "fit"]), 
+             se(newdf[newdf$SR == 1 & newdf$CO2 == "Camb" & 
+                        newdf$N == "Namb", "fit"]))
+monoN <- c("MonoN", mean(newdf[newdf$SR == 1 & newdf$CO2 == "Camb" & 
+                                     newdf$N == "Nenrich", "fit"]),
+           se(newdf[newdf$SR == 1 & newdf$CO2 == "Camb" & 
+                        newdf$N == "Nenrich", "fit"]))
+monoCO2 <- c("MonoCO2", mean(newdf[newdf$SR == 1 & newdf$CO2 == "Cenrich" & 
+                                     newdf$N == "Namb", "fit"]),
+             se(newdf[newdf$SR == 1 & newdf$CO2 == "Cenrich" & 
+                          newdf$N == "Namb", "fit"]))
+monoNCO2 <- c("MonoCO2N", mean(newdf[newdf$SR == 1 & newdf$CO2 == "Cenrich" & 
+                                      newdf$N == "Nenrich", "fit"]),
+              se(newdf[newdf$SR == 1 & newdf$CO2 == "Cenrich" & 
+                           newdf$N == "Nenrich", "fit"]))
+polyamb <- c("PolyAmb", mean(newdf[newdf$SR == 16 & newdf$CO2 == "Camb" & 
+                                       newdf$N == "Namb", "fit"]),
+             se(newdf[newdf$SR == 16 & newdf$CO2 == "Camb" & 
+                          newdf$N == "Namb", "fit"]))
+polyN <- c("PolyN", mean(newdf[newdf$SR == 16 & newdf$CO2 == "Camb" & 
+                                     newdf$N == "Nenrich", "fit"]),
+           se(newdf[newdf$SR == 16 & newdf$CO2 == "Camb" & 
+                        newdf$N == "Nenrich", "fit"]))
+polyCO2 <- c("PolyCO2", mean(newdf[newdf$SR == 16 & newdf$CO2 == "Cenrich" & 
+                                 newdf$N == "Namb", "fit"]),
+             se(newdf[newdf$SR == 16 & newdf$CO2 == "Cenrich" & 
+                          newdf$N == "Namb", "fit"]))      
+polyCO2N <- c("PolyCO2N", mean(newdf[newdf$SR == 16 & newdf$CO2 == "Cenrich" & 
+                                 newdf$N == "Nenrich", "fit"]),
+              se(newdf[newdf$SR == 16 & newdf$CO2 == "Cenrich" & 
+                           newdf$N == "Nenrich", "fit"]))
+gr.dat1 <- rbind(gr.dat1, monoamb, monoN, monoCO2, monoNCO2, polyN,
+                 polyamb, polyCO2, polyCO2N)
+gr.dat1 <- gr.dat1 [-1,]
+gr.dat1$TissueN <- as.numeric(gr.dat1$TissueN)
+gr.dat1$se <- as.numeric(gr.dat1$se)
+gr.dat1$Bar <- factor(gr.dat1$Bar, 
+                      levels = c("MonoAmb", "MonoN", "MonoCO2", "MonoCO2N",
+                                 "PolyAmb", "PolyN", "PolyCO2", "PolyCO2N"))
+ggplot()+
+  geom_hline(yintercept = gr.dat1$TissueN[1], linetype = 2, alpha = .5) +
+  geom_bar(aes(x=Bar, y = TissueN), data = gr.dat1, stat = "identity")+
+  geom_errorbar(aes(x = Bar, ymin = TissueN-se, ymax = TissueN+se, width = .25), data = gr.dat1) +
+  labs(x = "", y = "Tissue %N") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+## Average for year 1 and year 20
+
+gr.dat2 <- data.frame(Bar = NA, TissueN = NA, se = NA)
+se <- function(x) sqrt(var(x)/length(x))
+
+monoamb <- c("MonoAmb", mean(newdf[newdf$SR == 1 & newdf$CO2 == "Camb" & 
+                                     newdf$N == "Namb" & newdf$ExpYear == 1, "fit"]), 
+             se(newdf[newdf$SR == 1 & newdf$CO2 == "Camb" & 
+                        newdf$N == "Namb", "fit"]))
+monoN <- c("MonoN", mean(newdf[newdf$SR == 1 & newdf$CO2 == "Camb" & 
+                                 newdf$N == "Nenrich", "fit"]),
+           se(newdf[newdf$SR == 1 & newdf$CO2 == "Camb" & 
+                      newdf$N == "Nenrich", "fit"]))
+monoCO2 <- c("MonoCO2", mean(newdf[newdf$SR == 1 & newdf$CO2 == "Cenrich" & 
+                                     newdf$N == "Namb", "fit"]),
+             se(newdf[newdf$SR == 1 & newdf$CO2 == "Cenrich" & 
+                        newdf$N == "Namb", "fit"]))
+monoNCO2 <- c("MonoCO2N", mean(newdf[newdf$SR == 1 & newdf$CO2 == "Cenrich" & 
+                                       newdf$N == "Nenrich", "fit"]),
+              se(newdf[newdf$SR == 1 & newdf$CO2 == "Cenrich" & 
+                         newdf$N == "Nenrich", "fit"]))
+polyamb <- c("PolyAmb", mean(newdf[newdf$SR == 16 & newdf$CO2 == "Camb" & 
+                                     newdf$N == "Namb", "fit"]),
+             se(newdf[newdf$SR == 16 & newdf$CO2 == "Camb" & 
+                        newdf$N == "Namb", "fit"]))
+polyN <- c("PolyN", mean(newdf[newdf$SR == 16 & newdf$CO2 == "Camb" & 
+                                 newdf$N == "Nenrich", "fit"]),
+           se(newdf[newdf$SR == 16 & newdf$CO2 == "Camb" & 
+                      newdf$N == "Nenrich", "fit"]))
+polyCO2 <- c("PolyCO2", mean(newdf[newdf$SR == 16 & newdf$CO2 == "Cenrich" & 
+                                     newdf$N == "Namb", "fit"]),
+             se(newdf[newdf$SR == 16 & newdf$CO2 == "Cenrich" & 
+                        newdf$N == "Namb", "fit"]))      
+polyCO2N <- c("PolyCO2N", mean(newdf[newdf$SR == 16 & newdf$CO2 == "Cenrich" & 
+                                       newdf$N == "Nenrich", "fit"]),
+              se(newdf[newdf$SR == 16 & newdf$CO2 == "Cenrich" & 
+                         newdf$N == "Nenrich", "fit"]))
+monoamb20 <- c("MonoAmb20", mean(newdf[newdf$SR == 1 & newdf$CO2 == "Camb" & 
+                                     newdf$N == "Namb" & newdf$ExpYear == 20, "fit"]), 
+             se(newdf[newdf$SR == 1 & newdf$CO2 == "Camb" & 
+                        newdf$N == "Namb" & newdf$ExpYear == 20, "fit"]))
+monoN20 <- c("MonoN20", mean(newdf[newdf$SR == 1 & newdf$CO2 == "Camb" & 
+                                 newdf$N == "Nenrich" & newdf$ExpYear == 20, "fit"]),
+           se(newdf[newdf$SR == 1 & newdf$CO2 == "Camb" & 
+                      newdf$N == "Nenrich" & newdf$ExpYear == 20, "fit"]))
+monoCO2.20 <- c("MonoCO2.20", mean(newdf[newdf$SR == 1 & newdf$CO2 == "Cenrich" & 
+                                     newdf$N == "Namb" & newdf$ExpYear == 20, "fit"]),
+             se(newdf[newdf$SR == 1 & newdf$CO2 == "Cenrich" & 
+                        newdf$N == "Namb" & newdf$ExpYear == 20, "fit"]))
+monoCO2N20 <- c("MonoCO2N20", mean(newdf[newdf$SR == 1 & newdf$CO2 == "Cenrich" & 
+                                       newdf$N == "Nenrich" & newdf$ExpYear == 20, "fit"]),
+              se(newdf[newdf$SR == 1 & newdf$CO2 == "Cenrich" & 
+                         newdf$N == "Nenrich" & newdf$ExpYear == 20, "fit"]))
+polyamb20 <- c("PolyAmb20", mean(newdf[newdf$SR == 16 & newdf$CO2 == "Camb" & 
+                                     newdf$N == "Namb" & newdf$ExpYear == 20, "fit"]),
+             se(newdf[newdf$SR == 16 & newdf$CO2 == "Camb" & 
+                        newdf$N == "Namb" & newdf$ExpYear == 20, "fit"]))
+polyN20 <- c("PolyN20", mean(newdf[newdf$SR == 16 & newdf$CO2 == "Camb" & 
+                                 newdf$N == "Nenrich" & newdf$ExpYear == 20, "fit"]),
+           se(newdf[newdf$SR == 16 & newdf$CO2 == "Camb" & 
+                      newdf$N == "Nenrich" & newdf$ExpYear == 20, "fit"]))
+polyCO2.20 <- c("PolyCO2.20", mean(newdf[newdf$SR == 16 & newdf$CO2 == "Cenrich" & 
+                                     newdf$N == "Namb" & newdf$ExpYear == 20, "fit"]),
+             se(newdf[newdf$SR == 16 & newdf$CO2 == "Cenrich" & 
+                        newdf$N == "Namb" & newdf$ExpYear == 20, "fit"]))      
+polyCO2N20 <- c("PolyCO2N20", mean(newdf[newdf$SR == 16 & newdf$CO2 == "Cenrich" & 
+                                       newdf$N == "Nenrich" & newdf$ExpYear == 20, "fit"]),
+              se(newdf[newdf$SR == 16 & newdf$CO2 == "Cenrich" & 
+                         newdf$N == "Nenrich" & newdf$ExpYear == 20, "fit"]))
+gr.dat2 <- rbind(gr.dat2, monoamb, monoN, monoCO2, monoNCO2, polyN,
+                 polyamb, polyCO2, polyCO2N, monoamb20, monoN20,
+                 monoCO2.20, monoCO2N20, polyN20, polyamb20, 
+                 polyCO2.20, polyCO2N20)
+gr.dat2 <- gr.dat2 [-1,]
+gr.dat2$TissueN <- as.numeric(gr.dat2$TissueN)
+gr.dat2$se <- as.numeric(gr.dat2$se)
+gr.dat2$Bar <- factor(gr.dat2$Bar, 
+                      levels = c("MonoAmb", "MonoAmb20", "MonoN", "MonoN20","MonoCO2", 
+                                 "MonoCO2.20","MonoCO2N","MonoCO2N20","PolyAmb",
+                                 "PolyAmb20", "PolyN", "PolyN20", "PolyCO2", "PolyCO2.20",
+                                 "PolyCO2N","PolyCO2N20"))
+gr.dat2$col <- c(rep("One",8),rep("Twenty",8))
+
+ggplot()+
+  geom_bar(aes(x=Bar, y = TissueN, fill = col), data = gr.dat2, stat = "identity")+
+  scale_fill_manual(values = c("red", "blue")) +
+  geom_errorbar(aes(x = Bar, ymin = TissueN-se, ymax = TissueN+se, width = .25), data = gr.dat2) +
+  labs(x = "", y = "Tissue %N") +
+  geom_hline(yintercept = gr.dat2$TissueN[1], linetype = 2) + 
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
