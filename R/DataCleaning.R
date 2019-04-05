@@ -168,17 +168,20 @@ write.csv(soilN, here("data", "soilNClean.csv"))
 
 ## Seed weight
 
-seed <- read.csv(here("data", "SeedWt.csv"))
-names(seed) <- c("Year", "Plot", "Species", "Ring", "CO2", "N", "SR", "FGR", "Exp", 
-                 "monospecies", "MonoFunGroup", "Stalk", "FlowersOnStalk", "Flower", 
-                 "SeedCount", "SeedWt", "AvgSeedWt", "FlowerWt")
-seed <- seed[-which(seed$Plot %in% trtsub),]
-seed <- aggregate(seed$SeedWt, by = list(Year = seed$Year, Plot = seed$Plot, X5Lspecid = seed$Species, CO2 = seed$CO2, N = seed$N),
-                  FUN = mean)
-names(seed)[6] <- "SeedWt"
-seed <- merge(seed,CDRsp[,c(1,8)])
-seed <- seed[,-1]
+seed <- read.delim(here("data", "txt files", "extraseedwt.txt")) # using data from big bio to keep consistent
+seed <- seed[,c(2,7)]
+#names(seed) <- c("Year", "Plot", "Species", "Ring", "CO2", "N", "SR", "FGR", "Exp", 
+#                 "monospecies", "MonoFunGroup", "Stalk", "FlowersOnStalk", "Flower", 
+#                 "SeedCount", "SeedWt", "AvgSeedWt", "FlowerWt")
+#seed <- seed[-which(seed$Plot %in% trtsub),]
+#seed <- aggregate(seed$SeedWt, by = list(Year = seed$Year, Plot = seed$Plot, X5Lspecid = seed$Species, CO2 = seed$CO2, N = seed$N),
+#                  FUN = mean)
+names(seed) <- c("monospecies", "SeedWt")
+#seed <- merge(seed,CDRsp[,c(1,8)])
+#seed <- seed[,-1]
+seed <- merge(monoplots, seed)
 write.csv(seed, here("data", "seedWtClean.csv"))
+seed$Year <- 2008
 
 ## Root Biomass
 rootBiomass <- read.csv(here("data", "RootBiomass.csv"), na.strings = c("","NA"))
@@ -186,6 +189,7 @@ names(rootBiomass) <- c("Sample", "Date", "Plot", "Ring", "CO2", "N", "SR", "FGR
                         "Exp", "monospecies", "monoFunGroup", "WaterTrt", "TempTrt",
                         "Depth", "SubSamp", "Mass")
 rootBiomass$SubSamp<- gsub(pattern = "Crowns", replacement = "Crown", rootBiomass$SubSamp)
+rootBiomass <- rootBiomass[rootBiomass$SubSamp != "Crown",]
 rootBiomass <- rootBiomass[-which(rootBiomass$Plot %in% trtsub),]
 rootBiomass$Date <- as.Date(rootBiomass$Date,"%m/%d/%y")
 rootBiomass$Month <- as.numeric(format(rootBiomass$Date, format = "%m"))
@@ -212,21 +216,32 @@ rootBiomass$monospecies<- gsub(pattern = "AnemoneCylindrica", replacement = "Ane
 rootBiomass$Depth<- gsub(pattern = "0-20 ", replacement = "0-20", rootBiomass$Depth)
 
 rootBiomass <- rootBiomass[rootBiomass$SubSamp != "Unsorted", ]
-rootBiomass <- rootBiomass[rootBiomass$Depth == "0-20",]
 
-# Calculate total biomass
+# Calculate total biomass over all depth
 TotalRootBiomass <- aggregate(rootBiomass$Mass, 
                               by = list(Plot = rootBiomass$Plot,
                                         Year = rootBiomass$Year), FUN = sum)
 names(TotalRootBiomass)[3] <- "TotalRootBiomass"
-FineRootBiomass <- rootBiomass[rootBiomass$SubSamp == "Fine", ]
+# Calfulate Fine root biomass in shallow
+FineRootBiomass <- rootBiomass[rootBiomass$SubSamp == "Fine" & rootBiomass$Depth == "0-20", ]
 FineRootBiomass <- aggregate(FineRootBiomass$Mass, 
                               by = list(Plot = FineRootBiomass$Plot,
                                         Year = FineRootBiomass$Year), FUN = sum)
 names(FineRootBiomass)[3] <- "FineRootBiomass"
-FineRootBiomass <- merge(FineRootBiomass, TotalRootBiomass)
-FineRootBiomass$FineRootAllo <- FineRootBiomass$FineRootBiomass/FineRootBiomass$TotalRootBiomass
-write.csv(FineRootBiomass, here("data", "fineRootsClean.csv"))
+# Calculate total shallow biomass
+ShallowRootBiomass <- rootBiomass[rootBiomass$Depth == "0-20",]
+ShallowRootBiomass <- aggregate(ShallowRootBiomass$Mass, 
+                             by = list(Plot = ShallowRootBiomass$Plot,
+                                       Year = ShallowRootBiomass$Year), FUN = sum)
+names(ShallowRootBiomass)[3] <- "ShallowRootBiomass"
+RootBiomass <- plyr::join_all(list(FineRootBiomass, TotalRootBiomass, ShallowRootBiomass))
+RootBiomass$FineRootAllo <- RootBiomass$FineRootBiomass/RootBiomass$ShallowRootBiomass
+RootBiomass$PropShallow <- RootBiomass$ShallowRootBiomass/ RootBiomass$TotalRootBiomass
+# Root biomass is only measured in every plot for years 2000, 2001, 2004, 2005, 2006
+# Setting proportion shallow to NA for other years
+yearsub <- c(2000,2001,2004,2005,2006)
+RootBiomass$PropShallow[-which(RootBiomass$Year %in% yearsub)] <- NA
+write.csv(RootBiomass, here("data", "RootsClean.csv"))
 
 ## Biomass data
 
@@ -327,11 +342,17 @@ write.csv(ab.mat.wide, here::here("data", "abund_mat.csv"), row.names = TRUE)
 
 # Combine all datasets for monocultures
 
-mono.dat <- plyr::join_all(list(monoplots, TissueN_dat, rootNut, AmaxEtc, FineRootBiomass, soilN, light, seed), type = "left")
+mono.dat <- plyr::join_all(list(monoplots, rootNut, RootBiomass , TissueNut_dat, soilN, seed), type = "left")
+hold <- plyr::join_all(list(monoplots, AmaxEtc))
+hold1 <- plyr::join_all(list(monoplots, light))
+mono.dat <- plyr::join(hold,mono.dat, by = c("Plot", "Year"), type = "full")
+mono.dat <- plyr::join(hold1,mono.dat, by = c("Plot", "Year"), type = "full")
 mono.dat <- plyr::join(mono.dat, planted_bio, type = "left")  
-mono.dat <- mono.dat[,c(11,12,1:10,13:15,17:29)]
+mono.dat <- mono.dat[,c(1:6,8,9,28,7,11:27,29:31)]
 mono.dat$CO2 <- as.factor(mono.dat$CO2)
 mono.dat$N <- as.factor(mono.dat$N)
 mono.dat$SLA <- as.numeric(mono.dat$SLA)
 mono.dat$SeedWt <- as.numeric(mono.dat$SeedWt)
+mono.dat$ExpYear <- mono.dat$Year-1997
+
 write.csv(mono.dat, here("data", "monocultureTraitsBiomass.csv"))
